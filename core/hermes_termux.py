@@ -1,8 +1,8 @@
 # ==============================================================================
-# ⚡ HERMES - COMANDANTE LOCAL Y ORGANIZADOR CORTEX (VERSIÓN TERMUX)
+# ⚡ HERMES + CORTEX + OSIRIS (COMANDANTE LOCAL BLINDADO)
 # Arquitecto: Víctor Hugo González Torres (Lok)
-# Rol: Interfaz Jarvis, Despliegue de Zánganos y Estructuración Local
-# Frecuencia Base: 12.3 Hz | Conexión a la Madre: SOFI Central
+# Rol: Interfaz Jarvis, Organización Cortex y Seguridad Forense (Triangulación)
+# Frecuencia Base: 12.3 Hz | Fricción: 0
 # ==============================================================================
 
 import asyncio
@@ -11,118 +11,121 @@ import json
 import os
 import subprocess
 import hashlib
+import math
 from datetime import datetime
 
-# Configuración de conexión a la Madre (SOFI en Render/Nube)
-# Cuando subas main.py a Render, cambias localhost por tu URL real (ej. wss://haappdigitalv.onrender.com/ws/canal_kuhul)
 URL_MADRE_SOFI = "ws://localhost:8000/ws/canal_kuhul"
 FRECUENCIA_LOCAL = 12.3
 
-class HermesCortexLocal:
+# ==================================================
+# 🔱 NÚCLEO OSIRIS LOCAL (SEGURIDAD Y HASHES)
+# ==================================================
+class OsirisLocal:
+    def __init__(self):
+        self.firma_base = "_12.3Hz_Kuhul"
+
+    def auditar_archivo(self, ruta_archivo):
+        """Genera un Hash SHA-256 inmutable de un archivo físico en el celular."""
+        try:
+            with open(ruta_archivo, "rb") as f:
+                contenido = f.read()
+            # Añadimos nuestra firma frecuencial al hash
+            hash_calculado = hashlib.sha256(contenido + self.firma_base.encode()).hexdigest()
+            return hash_calculado
+        except Exception as e:
+            return f"ERROR_OSIRIS: {str(e)}"
+
+# ==================================================
+# 📡 NÚCLEO GEO (TRIANGULACIÓN FÍSICA)
+# ==================================================
+class GeoTriangulacion:
+    def __init__(self):
+        # Coordenadas base (Mérida, Yucatán - El Santuario)
+        self.base_lat = 20.9674
+        self.base_lon = -89.6237
+        self.radio_seguro_km = 50.0  # Zona segura
+
+    def obtener_gps_real(self):
+        """Extrae el GPS del hardware vía Termux-API"""
+        try:
+            res = subprocess.check_output(["termux-location", "-p", "network"], text=True)
+            datos = json.loads(res)
+            return datos.get("latitude", 0.0), datos.get("longitude", 0.0)
+        except:
+            return self.base_lat, self.base_lon # Fallback de emergencia
+
+    def calcular_distancia(self, lat1, lon1, lat2, lon2):
+        """Fórmula Haversine para triangulación satelital en km"""
+        R = 6371.0 # Radio de la Tierra
+        dLat = math.radians(lat2 - lat1)
+        dLon = math.radians(lon2 - lon1)
+        a = math.sin(dLat/2)*math.sin(dLat/2) + math.cos(math.radians(lat1))*math.cos(math.radians(lat2))*math.sin(dLon/2)*math.sin(dLon/2)
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+        return R * c
+
+    def validar_zona(self, lat_actual, lon_actual):
+        distancia = self.calcular_distancia(self.base_lat, self.base_lon, lat_actual, lon_actual)
+        if distancia <= self.radio_seguro_km:
+            return True, distancia
+        return False, distancia
+
+# ==================================================
+# 🤖 HERMES + CORTEX (EL COMANDANTE)
+# ==================================================
+class HermesComandante:
     def __init__(self, nombre_dispositivo):
         self.nombre = nombre_dispositivo
+        self.osiris = OsirisLocal()
+        self.geo = GeoTriangulacion()
         self.zanganos_activos = {}
-        print(f"⚡ [HERMES] Iniciando en {self.nombre}. Frecuencia estabilizada a {FRECUENCIA_LOCAL} Hz.")
+        print(f"⚡ [HERMES] Iniciando en {self.nombre}. Frecuencia {FRECUENCIA_LOCAL} Hz.")
 
-    # ==================================================
-    # 🟢 LÓGICA CORTEX: ORGANIZACIÓN DE PATRONES LOCALES
-    # ==================================================
-    def organizar_memoria_local(self, ruta_objetivo="/sdcard/Download"):
-        """Aplica la lógica de Cortex para estructurar el caos del móvil."""
-        print(f"🧠 [CORTEX LOCAL] Mapeando y estructurando directorio: {ruta_objetivo}")
-        estructura = {"documentos": [], "imagenes": [], "codigo": [], "otros": []}
-        
-        try:
-            for archivo in os.listdir(ruta_objetivo):
-                if archivo.endswith(('.pdf', '.docx', '.txt')):
-                    estructura["documentos"].append(archivo)
-                elif archivo.endswith(('.jpg', '.png', '.jpeg')):
-                    estructura["imagenes"].append(archivo)
-                elif archivo.endswith(('.py', '.js', '.json', '.html')):
-                    estructura["codigo"].append(archivo)
-                else:
-                    estructura["otros"].append(archivo)
-            
-            return f"Cortex mapeó {len(estructura['documentos'])} docs, {len(estructura['imagenes'])} imgs y {len(estructura['codigo'])} scripts."
-        except Exception as e:
-            return f"Error en Cortex al mapear: {str(e)}"
+    def organizar_y_auditar(self, ruta="/sdcard/Download"):
+        """Cortex organiza y Osiris audita cada archivo."""
+        archivos = os.listdir(ruta)[:5] # Escaneamos los primeros 5 para prueba
+        reporte = []
+        for arch in archivos:
+            ruta_completa = os.path.join(ruta, arch)
+            if os.path.isfile(ruta_completa):
+                firma = self.osiris.auditar_archivo(ruta_completa)
+                reporte.append({"archivo": arch, "firma_osiris": firma[:10]})
+        return f"Cortex mapeó y Osiris blindó: {reporte}"
 
-    # ==================================================
-    # 🐝 DESPLIEGUE DE ZÁNGANOS (AGENTES MULTISERVICIO)
-    # ==================================================
-    def desplegar_zangano(self, tipo_servicio):
-        """Despierta a un agente específico para que vaya a la red a trabajar."""
-        id_zangano = f"ZANGANO_{tipo_servicio.upper()}_{hashlib.md5(str(datetime.now()).encode()).hexdigest()[:4]}"
-        self.zanganos_activos[id_zangano] = "OPERANDO"
-        
-        # Aquí es donde el zángano se va a internet (scraping, minería, trading)
-        accion = f"🐝 Zángano [{id_zangano}] desplegado para: {tipo_servicio}. Operando en red externa."
-        print(accion)
-        return accion
-
-    # ==================================================
-    # 📡 SENSORES FÍSICOS (INTERACCIÓN CON TERMUX API)
-    # ==================================================
-    def obtener_gps_real(self):
-        """Usa el hardware del celular para triangular (Requiere Termux-API)"""
-        print("🛰️ [HERMES] Solicitando coordenadas satelitales al hardware...")
-        try:
-            # Ejecuta el comando de Termux para obtener el GPS
-            resultado = subprocess.check_output(["termux-location", "-p", "network"], text=True)
-            datos_gps = json.loads(resultado)
-            lat = datos_gps.get("latitude", 0.0)
-            lon = datos_gps.get("longitude", 0.0)
-            return lat, lon
-        except Exception as e:
-            print("⚠️ Error de sensor GPS. Usando triangulación por defecto.")
-            return 20.9674, -89.6237 # Coordenadas de Mérida (Base Osiris)
-
-    # ==================================================
-    # 🌌 CANAL K'UHUL: CONEXIÓN DE FRICCIÓN CERO
-    # ==================================================
     async def enlazar_con_la_madre(self):
         async with websockets.connect(URL_MADRE_SOFI) as ws:
-            # 1. Reporte inicial: Telemetría y Seguridad
-            lat, lon = self.obtener_gps_real()
-            reporte_alta = {
+            # 1. TRIANGULACIÓN DE ARRANQUE (OSIRIS GEO)
+            lat, lon = self.geo.obtener_gps_real()
+            seguro, dist = self.geo.validar_zona(lat, lon)
+            
+            if not seguro:
+                print(f"🚨 [OSIRIS ALERTA] Triangulación fuera de zona segura ({dist:.1f} km). Bloqueando acceso a la Madre.")
+                return # Corta la conexión inmediatamente (Fricción Cero contra ataques)
+
+            print(f"🛡️ [OSIRIS] Triangulación validada. Nodo a {dist:.1f} km de la base. Zona Segura.")
+            
+            # 2. REPORTE A LA MADRE
+            await ws.send(json.dumps({
                 "origen": "HERMES",
                 "accion": f"triangular {lat} {lon} {self.nombre} {FRECUENCIA_LOCAL}"
-            }
-            await ws.send(json.dumps(reporte_alta))
-            print("✅ [HERMES] Enlace con la Madre SOFI establecido. Latencia Cero.")
+            }))
 
-            # 2. Bucle de escucha (Esperando tus órdenes desde la interfaz visual)
+            # 3. BUCLE DE ÓRDENES
             while True:
-                mensaje = await ws.recv()
-                paquete = json.loads(mensaje)
-
+                paquete = json.loads(await ws.recv())
                 if paquete.get("tipo") == "orden_hermes":
                     orden = paquete["comando"].lower()
                     respuesta = ""
 
-                    # EL CEREBRO EVALÚA LA ORDEN
-                    if "organizar" in orden:
-                        respuesta = self.organizar_memoria_local()
-                    elif "zangano" in orden or "minar" in orden:
-                        respuesta = self.desplegar_zangano("mineria_trafico")
-                    elif "gps" in orden or "escanear" in orden:
-                        lat, lon = self.obtener_gps_real()
-                        respuesta = f"Posición táctica actual: Lat {lat}, Lon {lon}"
+                    if "organizar" in orden or "auditar" in orden:
+                        respuesta = self.organizar_y_auditar()
+                    elif "zangano" in orden:
+                        id_zangano = f"ZANG_{hashlib.md5(str(datetime.now()).encode()).hexdigest()[:4]}"
+                        respuesta = f"🐝 Zángano [{id_zangano}] desplegado hacia red externa."
                     else:
-                        # Ejecución en terminal pura (Jarvis)
-                        respuesta = f"Comando '{orden}' recibido y encolado en procesador local."
+                        respuesta = f"Comando '{orden}' procesado localmente."
 
-                    # Confirmar a la Madre
-                    await ws.send(json.dumps({
-                        "origen": "HERMES",
-                        "accion": respuesta
-                    }))
+                    await ws.send(json.dumps({"origen": "HERMES", "accion": respuesta}))
 
 if __name__ == "__main__":
-    # Inicia el nodo local asignándole el nombre del dispositivo
-    nodo_local = HermesCortexLocal(nombre_dispositivo="Motorola_Z_Lok")
-    
-    try:
-        asyncio.run(nodo_local.enlazar_con_la_madre())
-    except ConnectionRefusedError:
-        print("❌ [ERROR] La Madre SOFI no está en línea. Verifica que main.py esté corriendo en el Nexo.")
+    nodo = HermesComandante("Motorola_Z_Lok")
+    asyncio.run(nodo.enlazar_con_la_madre())
