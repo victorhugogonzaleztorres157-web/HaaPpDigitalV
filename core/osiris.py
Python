@@ -1,0 +1,9 @@
+import hashlib
+FRECUENCIA_BASE = 12.3
+
+class OsirisBlindaje:
+    def verificar_frecuencia(self, valor):
+        return abs(float(valor) - FRECUENCIA_BASE) <= 0.03
+
+    def generar_sello(self, datos):
+        return hashlib.sha256((str(datos) + str(FRECUENCIA_BASE)).encode()).hexdigest()
