@@ -1,69 +1,59 @@
 # ==============================================================================
-# 🐝 GESTOR DE FLOTA SOFÍ - EMPRESA MAESTRA (HaaPpDigitalV)
+# 🐝 NÚCLEO DE AGENTES SOFÍ (HaaPpDigitalV)
 # Arquitecto: Víctor Hugo González Torres (Lok)
-# Módulo: Flota de Agentes Multiservicio
-# Sincronización: 12.3 Hz | Protocolo: Coherencia Total
+# Misión: Operación Autónoma Sincronizada con la Madre
 # ==============================================================================
 
 import asyncio
 import json
 import websockets
-import time
+import hashlib
+from datetime import datetime
 
-class AgenteEspecializado:
+class AgenteMaestro:
     def __init__(self, nombre, rol, url_madre):
         self.nombre = nombre
         self.rol = rol
         self.url_madre = url_madre
-        self.wallet = 0.0 # Balance de SYXSOF
+        self.estado = "INACTIVO"
+        self.firma_base = "_12.3Hz_Kuhul"
+        print(f"🧬 [AGENTE {self.nombre}] Instanciado en modo {self.rol}.")
 
-    async def operar(self):
-        """Lógica central de cada agente."""
-        async with websockets.connect(self.url_madre) as ws:
-            print(f"🚀 Agente [{self.nombre}] iniciado en rol: {self.rol}")
-            
-            while True:
-                # El agente espera órdenes específicas del Gestor
-                try:
-                    mensaje = await ws.recv()
-                    orden = json.loads(mensaje)
+    def generar_sello_forense(self, data):
+        """Osiris: Firma cada movimiento del agente."""
+        blob = json.dumps(data, sort_keys=True) + self.firma_base
+        return hashlib.sha256(blob.encode()).hexdigest()[:16]
+
+    async def conectar_a_la_colmena(self):
+        """Conexión persistente al bus de la Madre."""
+        while True:
+            try:
+                async with websockets.connect(self.url_madre) as ws:
+                    print(f"🔗 [AGENTE {self.nombre}] Canal abierto.")
+                    await ws.send(json.dumps({"tipo": "handshake", "agente": self.nombre}))
                     
-                    if orden.get("target") == self.nombre:
-                        resultado = self.ejecutar_tarea(orden["accion"])
-                        await ws.send(json.dumps({"agente": self.nombre, "resultado": resultado}))
-                except Exception as e:
-                    await asyncio.sleep(5)
+                    while True:
+                        mensaje = await ws.recv()
+                        paquete = json.loads(mensaje)
+                        
+                        # Si la Madre (SOFÍ) da una orden, el agente la ejecuta
+                        if paquete.get("rol_destino") == self.rol:
+                            accion = paquete.get("accion")
+                            print(f"⚙️ [AGENTE {self.nombre}] Ejecutando: {accion}")
+                            
+                            resultado = self.logica_operativa(accion)
+                            
+                            # Respuesta firmada
+                            respuesta = {
+                                "origen": self.nombre,
+                                "payload": resultado,
+                                "osiris_sello": self.generar_sello_forense(resultado)
+                            }
+                            await ws.send(json.dumps(respuesta))
+            except Exception as e:
+                print(f"⚠️ [AGENTE {self.nombre}] Fricción en red: {e}. Reconectando...")
+                await asyncio.sleep(5)
 
-    def ejecutar_tarea(self, accion):
-        """La lógica interna de cada agente según su especialidad."""
-        if self.rol == "TRADING":
-            # Lógica de ZFPI - Polar Inversion
-            return f"Trade ejecutado: Posición {accion} verificada en 12.3 Hz."
-        elif self.rol == "MINERIA":
-            # Aquí es donde ocurre la minería de interacción (ad-lock)
-            return f"Interacción minada: 1.5 $SYXSOF generados."
-        elif self.rol == "TESORERIA":
-            self.wallet += 1.5
-            return f"Fondos conciliados. Balance total: {self.wallet} $SYXSOF."
-        return "Tarea ejecutada."
-
-# ==================================================
-# ORQUESTADOR DE OFICINAS (Instancias de Agentes)
-# ==================================================
-class GestorFlota:
-    def __init__(self, url_madre):
-        self.url_madre = url_madre
-        self.agentes = [
-            AgenteEspecializado("Tesorero", "TESORERIA", url_madre),
-            AgenteEspecializado("Miner", "MINERIA", url_madre),
-            AgenteEspecializado("Trader", "TRADING", url_madre)
-        ]
-
-    async def arrancar_todo(self):
-        tasks = [agente.operar() for agente in self.agentes]
-        await asyncio.gather(*tasks)
-
-if __name__ == "__main__":
-    # Conexión al Bus de Coherencia de SOFÍ (Render)
-    gestor = GestorFlota("wss://haappdigitalv-core.onrender.com/ws/canal_kuhul")
-    asyncio.run(gestor.arrancar_todo())
+    def logica_operativa(self, accion):
+        """A ser implementada por cada agente específico."""
+        raise NotImplementedError("Los agentes deben definir su lógica operativa.")
