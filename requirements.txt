@@ -2,3 +2,9 @@ fastapi
 uvicorn
 websockets
 Pillow
+pymongo
+dnspython
+sentence-transformers
+faiss-cpu
+numpy
+requests
