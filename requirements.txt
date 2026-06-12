@@ -1,36 +1,27 @@
-fastapi
-uvicorn
-websockets
-pymongo
-sentence-transformers
-faiss-cpu
-numpy
-Pillow
-geopy
-requests
-# ── AGENTE FINANCIERO UNIVERSAL 2.0 — HaaPpDigitalV ──────────────────────────
-# pip install -r requirements_afu.txt
-
-# Core web
-flask>=3.0.0
-flask-socketio>=5.3.0
-flask-cors>=4.0.0
-python-engineio>=4.8.0
-python-socketio>=5.10.0
-eventlet>=0.35.0
-gunicorn>=21.0.0
-
-# Comunicación
-requests>=2.31.0
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
 websockets>=12.0
+python-dotenv>=1.0.0
+numpy>=1.24.0
+scipy>=1.11.0
 
-# Base de datos
+# BASES DE DATOS Y MEMORIA
 pymongo>=4.6.0
 dnspython>=2.4.0
+faiss-cpu>=1.7.4
+sentence-transformers>=2.2.2
 
-# Utilidades
-python-dotenv>=1.0.0
-Pillow>=10.0.0
+# UTILIDADES
+requests>=2.31.0
+Pillow>=10.1.0
+geopy>=2.4.0
 
-# Render / producción
-uvicorn>=0.29.0
+# ASYNC Y CONCURRENCIA
+aiofiles>=23.2.0
+asyncio-contextmanager>=1.0.0
+
+# LOGGING Y MONITOREO
+python-json-logger>=2.0.7
+
+# PRODUCCIÓN (Render)
+gunicorn>=21.2.0
