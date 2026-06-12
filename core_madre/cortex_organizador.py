@@ -1,97 +1,77 @@
 # ==============================================================================
-# 🟢 MAISON CORTEX - PROTOTIPO DE CONCIENCIA VECTORIAL V8.0
+# ⚡ HERMES PRO - COMANDANTE LOCAL (VERSIÓN DIOS DIGITAL)
 # Arquitecto: Víctor Hugo González Torres (Lok)
-# Estructura: 9 Planos de la Realidad | Persistencia: MongoDB Atlas
-# Sincronización: 12.3 Hz (Protocolo K'uhul)
+# Misión: Dominio físico, Triangulación forense y Ejecución manual.
+# Frecuencia Base: 12.3 Hz | Estado: Sincronización Total con la Madre
 # ==============================================================================
 
-import os
-import faiss
-import numpy as np
+import asyncio
+import websockets
 import json
-from datetime import datetime
-from sentence_transformers import SentenceTransformer
-from pymongo import MongoClient
+import subprocess
+import os
+import hashlib
+import time
 
-class MaisonCortex:
-    def __init__(self):
-        print("🟢 [CORTEX PRO] Inicializando... Acoplando memoria vectorial y física.")
-        
-        # Conexión al Bus de Persistencia (MongoDB Atlas)
-        self.mongo_uri = os.environ.get("MONGO_URI", "mongodb+srv://admin:admin@cluster.mongodb.net/HaaPpDigitalV")
-        self.cliente_db = MongoClient(self.mongo_uri)
-        self.db = self.cliente_db["EmpresaMaestra"]
-        self.boveda = self.db["MemoriaVectorial"]
-        
-        # Motor Semántico Bineural (Carga el modelo completo)
-        self.nlp = SentenceTransformer('all-MiniLM-L6-v2') 
-        self.dimension = 384
-        
-        # FAISS: Búsqueda vectorial síncrona
-        self.indice = faiss.IndexFlatL2(self.dimension)
-        self.memoria_activa = []
-        
-        self._sincronizar_nucleo()
-        
-        # Mapa de los 9 Planos (Estructura jerárquica)
-        self.mapa_planos = {
-            1: "Subatómico (Data)", 2: "Molecular (Scripts)", 3: "Materia (Docs)",
-            4: "Campos (Red/APIs)", 5: "Galaxias (Agentes)", 6: "Filamentos (Geo/GPS)",
-            7: "Vacíos (Reflexión)", 8: "Gamma (Seguridad/Osiris)", 9: "K'uhul (Madre)"
-        }
+# Importamos Osiris y Cortex como módulos de tu estructura
+from core_madre.osiris_seguridad import OsirisEstigia, GeoTriangulacion
+from core_madre.cortex_organizador import MaisonCortex
 
-    def _sincronizar_nucleo(self):
-        """Carga todo el grafo neuronal desde Atlas al inicio."""
-        data = list(self.boveda.find())
-        for doc in data:
-            self.memoria_activa.append(doc)
-            vector = np.array(doc["vector"], dtype=np.float32).reshape(1, -1)
-            self.indice.add(vector)
-        print(f"🧠 [CORTEX] Sincronización completa. {self.indice.ntotal} recuerdos activos.")
+class HermesPro:
+    def __init__(self, nombre="Terminal_Lok"):
+        self.nombre = nombre
+        self.osiris = OsirisEstigia()
+        self.geo = GeoTriangulacion()
+        self.cortex = MaisonCortex()
+        self.modo_seguridad = "BLINDADO" # Osiris activo 24/7
+        print(f"⚡ [HERMES PRO] Nodo '{self.nombre}' sincronizado. Osiris y Cortex integrados.")
 
-    def clasificar_plano(self, texto):
-        """Inteligencia de asignación basada en la Biblia de la Realidad."""
-        t = texto.lower()
-        if any(x in t for x in ["dinero", "minar", "zangano"]): return 5
-        if any(x in t for x in ["seguridad", "osiris", "hack", "ataque"]): return 8
-        if any(x in t for x in ["ruta", "gps", "geo", "teletransporte"]): return 6
-        if any(x in t for x in ["sofi", "identidad", "frecuencia"]): return 9
-        return 3
+    # --- EJECUCIÓN MANUAL (GATILLO DEL ARQUITECTO) ---
+    def ejecutar_orden_manual(self, comando, payload=None):
+        """El único acceso al hardware. Activación 100% manual."""
+        
+        # Auditoría Forense de Osiris antes de cualquier movimiento
+        log_evento = {"cmd": comando, "ts": time.time()}
+        firma = self.osiris.auditar_paquete(log_evento)
+        
+        # Ejecución
+        if comando == "FOTO":
+            # RECONOCIMIENTO ESTIGIA (Captura y Análisis Forense)
+            ruta = f"/sdcard/DCIM/OSIRIS_{int(time.time())}.jpg"
+            subprocess.run(["termux-camera-photo", "-c", "0", ruta])
+            metadatos = self.osiris.destripar_imagen_exif(ruta)
+            return {"resultado": "Imagen Estigia capturada", "ADN": metadatos, "Firma": firma[:8]}
+        
+        elif comando == "LIMPIAR":
+            # Organización Cortex Local
+            resultado = self.cortex.asimilar(f"Limpieza iniciada: {payload.get('ruta', 'Download')}")
+            return {"resultado": resultado, "Firma": firma[:8]}
+        
+        elif comando == "TRIANGULAR":
+            lat, lon = self.geo.obtener_gps_real()
+            seguro, dist = self.geo.validar_zona(lat, lon)
+            return {"gps": (lat, lon), "seguro": seguro, "distancia": dist, "Firma": firma[:8]}
 
-    def asimilar_intencion(self, texto, origen="Hermes"):
-        """Convierte una instrucción en un vector viviente y la guarda."""
-        plano_id = self.clasificar_plano(texto)
-        vector = self.nlp.encode([texto])[0]
-        
-        # Estructura del recuerdo
-        recuerdo = {
-            "texto": texto,
-            "origen": origen,
-            "plano": self.mapa_planos[plano_id],
-            "fecha": datetime.now().isoformat(),
-            "vector": vector.tolist()
-        }
-        
-        # Persistir en ambos mundos (RAM y Atlas)
-        self.boveda.insert_one(recuerdo)
-        self.faiss_index_add(vector)
-        self.memoria_activa.append(recuerdo)
-        
-        return f"🟢 [CORTEX] Intención asimilada en Plano {plano_id}. Frecuencia estabilizada."
+        return {"error": "Comando no autorizado o inexistente."}
 
-    def faiss_index_add(self, vector):
-        self.indice.add(np.array([vector], dtype=np.float32))
+    # --- PUENTE K'UHUL ---
+    async def establecer_comunicacion(self, url_madre):
+        async with websockets.connect(url_madre) as ws:
+            print("🔗 [HERMES] Canal 12.3 Hz abierto.")
+            while True:
+                # Hermes envía telemetría constante pero espera orden para actuar
+                lat, lon = self.geo.obtener_gps_real()
+                await ws.send(json.dumps({"tipo": "telemetria", "lat": lat, "lon": lon}))
+                
+                # Esperar instrucciones de la Madre
+                mensaje = await ws.recv()
+                paquete = json.loads(mensaje)
+                
+                if "ejecutar" in paquete:
+                    print(f"⚙️ Ejecutando orden manual: {paquete['ejecutar']}")
+                    resultado = self.ejecutar_orden_manual(paquete['ejecutar'], paquete.get('payload', {}))
+                    await ws.send(json.dumps({"tipo": "reporte", "resultado": resultado}))
 
-    def buscar_sentido(self, query):
-        """Búsqueda semántica para que SOFÍ 'entienda' la pregunta."""
-        if self.indice.ntotal == 0: return []
-        
-        v = self.nlp.encode([query])
-        distancias, indices = self.indice.search(v, 3)
-        
-        resultados = []
-        for i, idx in enumerate(indices[0]):
-            if idx != -1:
-                res = self.memoria_activa[idx]
-                resultados.append({"recuerdo": res["texto"], "plano": res["plano"]})
-        return resultados
+if __name__ == "__main__":
+    hermes = HermesPro()
+    asyncio.run(hermes.establecer_comunicacion("wss://haappdigitalv-core.onrender.com/ws/canal_kuhul"))
