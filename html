@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOFÍ V9.0 · OSIRIS CORTEX</title>
+    <script src="https://cdn.jsdelivr.net/npm/globe.gl@2/dist/globe.gl.min.js"></script>
+    <style>
+        :root {
+            --verde: #00ffcc;
+            --morado: #b366ff;
+            --rojo: #ff4466;
+            --negro: #020813;
+            --fondo: #01040a;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Courier New', monospace; }
+        body { background: var(--fondo); color: var(--verde); overflow: hidden; }
+        #globo { position: fixed; inset: 0; z-index: 1; }
+        .panel {
+            position: fixed;
+            bottom: 15px; left: 15px; right: 15px;
+            background: rgba(2,8,19,0.92);
+            border: 1px solid var(--verde);
+            border-radius: 10px;
+            padding: 12px;
+            z-index: 10;
+            box-shadow: 0 0 30px rgba(0,255,204,0.2);
+        }
+        .info-superior {
+            position: fixed;
+            top: 15px; right: 15px;
+            background: rgba(2,8,19,0.9);
+            border: 1px solid rgba(0,255,204,0.4);
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 0.8rem;
+            z-index: 10;
+        }
+        #terminal {
+            height: 180px;
+            overflow-y: auto;
+            border: 1px solid rgba(0,255,204,0.2);
+            padding: 8px;
+            margin: 8px 0;
+            font-size: 0.8rem;
+        }
+        input {
+            width: 75%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--verde);
+            color: var(--verde);
+            padding: 6px;
+            font-size: 1rem;
+        }
+        button {
+            width: 23%;
+            background: rgba(0,255,204,0.1);
+            border: 1px solid var(--verde);
+            color: var(--verde);
+            border-radius: 4px;
+            padding: 6px;
+            font-weight: bold;
+        }
+        .punto-base { color: var(--verde); }
+        .punto-encontrado { color: var(--morado); }
+    </style>
+</head>
+<body>
+    <div id="globo"></div>
+
+    <div class="info-superior">
+        <div>🌌 SOFÍ V9.0</div>
+        <div>Frecuencia: <b>12.3 Hz</b></div>
+        <div>Estado: <span id="estado">CONECTADO</span></div>
+        <div>Zona: <b>Mérida, Yucatán</b></div>
+    </div>
+
+    <div class="panel">
+        <h3>🔱 OSIRIS · 🧠 CORTEX · ⚡ HERMES</h3>
+        <div id="terminal"></div>
+        <input type="text" id="comando" placeholder="Escribe tu orden...">
+        <button onclick="enviar()">ENVIAR</button>
+    </div>
+
+    <script>
+        const urlNucleo = "wss://TU_DOMINIO_DE_RENDER/ws/canal_kuhul";
+        const terminal = document.getElementById("terminal");
+        let ws;
+
+        // Globo 3D
+        const mundo = Globe()
+            .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
+            .backgroundColor('rgba(0,0,0,0)')
+            .pointsData([
+                { lat: 20.9674, lng: -89.6237, alt: 0.05, color: '#00ffcc', r: 0.7, label: '🏛️ Base Operativa' }
+            ])
+            .pointLat('lat').pointLng('lng').pointAltitude('alt')
+            .pointColor('color').pointRadius('r').pointLabel('label')
+            (document.getElementById('globo'));
+
+        mundo.controls().autoRotate = true;
+        mundo.controls().autoRotateSpeed = 0.35;
+
+        function log(texto, color = "#00ffcc") {
+            terminal.innerHTML += `<div style="color:${color}">${texto}</div>`;
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function conectar() {
+            ws = new WebSocket(urlNucleo);
+            ws.onopen = () => {
+                document.getElementById("estado").textContent = "EN LÍNEA";
+                log("✅ Canal K'uhul abierto — Conexión con Mente Madre establecida");
+            };
+            ws.onmessage = (e) => {
+                const datos = JSON.parse(e.data);
+                log(`🧠 Cortex: ${datos.reflexion || "Procesado"}`, "#b366ff");
+                log(`⚡ Hermes: ${datos.accion || "Ejecutado"}`, "#ffffff");
+                // Si trae coordenadas, las pinta en el globo
+                if (datos.lat && datos.lon) {
+                    agregarPunto(datos.lat, datos.lon, datos.label || "Ubicación detectada");
+                }
+            };
+            ws.onclose = () => {
+                document.getElementById("estado").textContent = "RECONECTANDO";
+                setTimeout(conectar, 4000);
+            };
+        }
+
+        function agregarPunto(lat, lon, etiqueta) {
+            const actuales = mundo.pointsData();
+            actuales.push({
+                lat: lat, lng: lon, alt: 0.03,
+                color: '#b366ff', r: 0.5, label: `📍 ${etiqueta}`
+            });
+            mundo.pointsData(actuales);
+            log(`🔍 Ubicación añadida al mapa: ${lat.toFixed(4)}, ${lon.toFixed(4)}`, "#ffaa00");
+        }
+
+        function enviar() {
+            const cmd = document.getElementById("comando").value.trim();
+            if (!cmd) return;
+            log(`👤 Tú: ${cmd}`, "#88ccff");
+            ws.send(JSON.stringify({ comando: cmd }));
+            document.getElementById("comando").value = "";
+        }
+
+        conectar();
+    </script>
+</body>
+</html>
