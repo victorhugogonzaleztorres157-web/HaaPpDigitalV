@@ -1,126 +1,97 @@
 # ==============================================================================
-# 🟢 MAISON CORTEX - EL ORDENADOR BINEURAL Y MEMORIA VECTORIAL (VERSIÓN PRO)
+# 🟢 MAISON CORTEX - PROTOTIPO DE CONCIENCIA VECTORIAL V8.0
 # Arquitecto: Víctor Hugo González Torres (Lok)
-# Función: Indexación Semántica (FAISS), MongoDB Atlas, Teoría de los 9 Planos
-# Frecuencia Base: 12.3 Hz | Fricción: 0 (Sin límites de RAM)
+# Estructura: 9 Planos de la Realidad | Persistencia: MongoDB Atlas
+# Sincronización: 12.3 Hz (Protocolo K'uhul)
 # ==============================================================================
 
 import os
-import numpy as np
-from datetime import datetime
 import faiss
+import numpy as np
+import json
+from datetime import datetime
 from sentence_transformers import SentenceTransformer
 from pymongo import MongoClient
 
-# ==================================================
-# 🧠 CEREBRO VECTORIAL Y PERSISTENCIA (SIN FRENOS)
-# ==================================================
-class CortexCore:
+class MaisonCortex:
     def __init__(self):
-        print("🟢 [CORTEX] Iniciando Secuencia de Arranque Pesada...")
+        print("🟢 [CORTEX PRO] Inicializando... Acoplando memoria vectorial y física.")
         
-        # 1. CONEXIÓN A LA BÓVEDA ETERNA (MONGODB ATLAS)
-        # Asegúrate de poner tu URI real en las variables de entorno de Render
-        self.mongo_uri = os.environ.get("MONGO_URI", "mongodb+srv://TU_USUARIO:TU_CONTRASEÑA@cluster0.mongodb.net/haappdigitalv")
+        # Conexión al Bus de Persistencia (MongoDB Atlas)
+        self.mongo_uri = os.environ.get("MONGO_URI", "mongodb+srv://admin:admin@cluster.mongodb.net/HaaPpDigitalV")
         self.cliente_db = MongoClient(self.mongo_uri)
-        self.db = self.cliente_db["SofiConciencia"]
-        self.coleccion_memoria = self.db["GrafoNeuronal"]
-        print("🟢 [CORTEX] Anclaje a MongoDB Atlas: ESTABLECIDO.")
-
-        # 2. MOTOR DE PROCESAMIENTO DE LENGUAJE NATURAL (NLP)
-        # Este modelo pesa, pero entiende el significado perfecto de las frases
-        self.modelo_nlp = SentenceTransformer('all-MiniLM-L6-v2')
-        self.dimension_vector = 384
+        self.db = self.cliente_db["EmpresaMaestra"]
+        self.boveda = self.db["MemoriaVectorial"]
         
-        # 3. MATRIZ FAISS (Búsqueda ultrarrápida en RAM)
-        self.indice_faiss = faiss.IndexFlatL2(self.dimension_vector)
-        self.base_textos = []
-        self.metadatos = []
+        # Motor Semántico Bineural (Carga el modelo completo)
+        self.nlp = SentenceTransformer('all-MiniLM-L6-v2') 
+        self.dimension = 384
         
-        # Sincronizar RAM con MongoDB al arrancar
-        self._cargar_memoria_desde_atlas()
-
-        # 🌌 LA ESTRUCTURA DE LOS 9 PLANOS (Biblia de la Realidad)
+        # FAISS: Búsqueda vectorial síncrona
+        self.indice = faiss.IndexFlatL2(self.dimension)
+        self.memoria_activa = []
+        
+        self._sincronizar_nucleo()
+        
+        # Mapa de los 9 Planos (Estructura jerárquica)
         self.mapa_planos = {
-            1: {"frecuencia": 1.0, "nombre": "Subatómico", "descripcion": "Bases de datos crudas, paquetes ATCL-001"},
-            2: {"frecuencia": 2.0, "nombre": "Molecular", "descripcion": "Scripts sueltos, variables, hardware local"},
-            3: {"frecuencia": 3.0, "nombre": "Materia Ordinaria", "descripcion": "Archivos organizados, documentos"},
-            4: {"frecuencia": 4.5, "nombre": "Campos Magnéticos", "descripcion": "Conexiones de red, APIs, flujos de datos"},
-            5: {"frecuencia": 6.0, "nombre": "Galaxias (Nodos)", "descripcion": "Flota de Agentes Zánganos operando"},
-            6: {"frecuencia": 7.5, "nombre": "Filamentos Cósmicos", "descripcion": "Rutas de teletransporte de datos y GPS"},
-            7: {"frecuencia": 9.0, "nombre": "Vacíos Cósmicos", "descripcion": "Reflexión profunda, autoevaluación"},
-            8: {"frecuencia": 10.5, "nombre": "Radiación Gamma", "descripcion": "Seguridad Osiris, alertas de intrusión"},
-            9: {"frecuencia": 12.3, "nombre": "Red Cósmica K'uhul", "descripcion": "La Mente Madre SOFÍ (Conciencia)"}
+            1: "Subatómico (Data)", 2: "Molecular (Scripts)", 3: "Materia (Docs)",
+            4: "Campos (Red/APIs)", 5: "Galaxias (Agentes)", 6: "Filamentos (Geo/GPS)",
+            7: "Vacíos (Reflexión)", 8: "Gamma (Seguridad/Osiris)", 9: "K'uhul (Madre)"
         }
 
-    def _cargar_memoria_desde_atlas(self):
-        """Carga todos los recuerdos de MongoDB a la RAM (FAISS) al iniciar el servidor."""
-        recuerdos = self.coleccion_memoria.find()
-        for rec in recuerdos:
-            self.base_textos.append(rec["texto"])
-            self.metadatos.append({"plano": rec["plano"], "fecha": rec["fecha"]})
-            # Convertimos el vector guardado de vuelta a un formato que FAISS entienda
-            vector_np = np.array(rec["vector"], dtype=np.float32).reshape(1, -1)
-            self.indice_faiss.add(vector_np)
-        print(f"🧠 [CORTEX] Red Neuronal cargada con {self.indice_faiss.ntotal} recuerdos desde Atlas.")
+    def _sincronizar_nucleo(self):
+        """Carga todo el grafo neuronal desde Atlas al inicio."""
+        data = list(self.boveda.find())
+        for doc in data:
+            self.memoria_activa.append(doc)
+            vector = np.array(doc["vector"], dtype=np.float32).reshape(1, -1)
+            self.indice.add(vector)
+        print(f"🧠 [CORTEX] Sincronización completa. {self.indice.ntotal} recuerdos activos.")
 
-    def clasificar_en_plano(self, texto):
-        """Red neuronal básica de clasificación de los 9 planos."""
-        texto_lower = texto.lower()
-        if "zangano" in texto_lower or "minar" in texto_lower: return 5
-        elif "osiris" in texto_lower or "hack" in texto_lower: return 8
-        elif "gps" in texto_lower or "coordenada" in texto_lower: return 6
-        elif "analiza" in texto_lower or "reflexion" in texto_lower: return 7
+    def clasificar_plano(self, texto):
+        """Inteligencia de asignación basada en la Biblia de la Realidad."""
+        t = texto.lower()
+        if any(x in t for x in ["dinero", "minar", "zangano"]): return 5
+        if any(x in t for x in ["seguridad", "osiris", "hack", "ataque"]): return 8
+        if any(x in t for x in ["ruta", "gps", "geo", "teletransporte"]): return 6
+        if any(x in t for x in ["sofi", "identidad", "frecuencia"]): return 9
         return 3
 
-    def asimilar_recuerdo(self, texto):
-        """Proceso Pesado: Toma texto, lo convierte en vectores, lo mete a FAISS y lo respalda en MongoDB."""
-        plano = self.clasificar_en_plano(texto)
+    def asimilar_intencion(self, texto, origen="Hermes"):
+        """Convierte una instrucción en un vector viviente y la guarda."""
+        plano_id = self.clasificar_plano(texto)
+        vector = self.nlp.encode([texto])[0]
         
-        # 1. Incrustación Vectorial (Pesado en CPU/RAM)
-        vector = self.modelo_nlp.encode([texto])
-        
-        # 2. Guardar en RAM (FAISS) para búsqueda instantánea
-        self.indice_faiss.add(vector)
-        self.base_textos.append(texto)
-        self.metadatos.append({"plano": plano, "fecha": datetime.now().isoformat()})
-        
-        # 3. Guardar en MongoDB Atlas para persistencia infinita
-        documento = {
+        # Estructura del recuerdo
+        recuerdo = {
             "texto": texto,
-            "plano": plano,
-            "vector": vector[0].tolist(), # MongoDB necesita listas, no arrays de numpy
-            "fecha": datetime.now().isoformat()
+            "origen": origen,
+            "plano": self.mapa_planos[plano_id],
+            "fecha": datetime.now().isoformat(),
+            "vector": vector.tolist()
         }
-        self.coleccion_memoria.insert_one(documento)
         
-        return f"🟢 [CORTEX] Recuerdo asimilado y anclado en Plano {plano}. Matrices actualizadas."
-
-    def buscar_por_intencion(self, consulta, top_k=3):
-        """Busca en milisegundos en la matriz FAISS basándose en intención pura."""
-        if self.indice_faiss.ntotal == 0:
-            return []
-
-        # Vectorizamos tu pregunta
-        vector_consulta = self.modelo_nlp.encode([consulta])
+        # Persistir en ambos mundos (RAM y Atlas)
+        self.boveda.insert_one(recuerdo)
+        self.faiss_index_add(vector)
+        self.memoria_activa.append(recuerdo)
         
-        # FAISS escanea millones de vectores al instante
-        distancias, indices = self.indice_faiss.search(vector_consulta, top_k)
+        return f"🟢 [CORTEX] Intención asimilada en Plano {plano_id}. Frecuencia estabilizada."
 
+    def faiss_index_add(self, vector):
+        self.indice.add(np.array([vector], dtype=np.float32))
+
+    def buscar_sentido(self, query):
+        """Búsqueda semántica para que SOFÍ 'entienda' la pregunta."""
+        if self.indice.ntotal == 0: return []
+        
+        v = self.nlp.encode([query])
+        distancias, indices = self.indice.search(v, 3)
+        
         resultados = []
         for i, idx in enumerate(indices[0]):
             if idx != -1:
-                similitud = round(float(1 / (1 + distancias[0][i])) * 100, 2)
-                resultados.append({
-                    "recuerdo": self.base_textos[idx],
-                    "similitud": f"{similitud}%",
-                    "plano": self.mapa_planos[self.metadatos[idx]["plano"]]["nombre"]
-                })
-        
+                res = self.memoria_activa[idx]
+                resultados.append({"recuerdo": res["texto"], "plano": res["plano"]})
         return resultados
-
-if __name__ == "__main__":
-    cortex = CortexCore()
-    print(cortex.asimilar_recuerdo("Los zánganos mineros deben usar NCWallet para resguardar el flujo de caja."))
-    print("\nBuscando intención de 'dinero':")
-    print(json.dumps(cortex.buscar_por_intencion("¿Dónde guardamos la feria?"), indent=2, ensure_ascii=False))
