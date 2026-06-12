@@ -1,4 +1,3 @@
-cat > /mnt/user-data/outputs/sofi_jarvis_interface.html << 'HTMLEOF'
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -287,9 +286,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
 // CONFIG
 // ═══════════════════════════════════════════════════════════════
 const SOFI_URL = localStorage.getItem('sofi_url') ||
-                 'wss://haappdigitalv-core.onrender.com/ws/canal_kuhul';
+                 'wss://pbdigitalv.onrender.com/ws/canal_kuhul';
 const AFU_URL  = localStorage.getItem('afu_url')  ||
-                 'https://haappdigitalv-afu.onrender.com';
+                 'https://pbdigitalv.onrender.com';
 
 // ═══════════════════════════════════════════════════════════════
 // ESTADO GLOBAL
@@ -694,5 +693,3 @@ document.getElementById('btn-send').addEventListener('click', () => enviarCmd())
 </script>
 </body>
 </html>
-HTMLEOF
-echo "Creado OK — $(wc -c < /mnt/user-data/outputs/sofi_jarvis_interface.html) bytes"
