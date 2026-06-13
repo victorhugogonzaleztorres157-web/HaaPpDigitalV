@@ -3,9 +3,10 @@
 """
 SOFÍ v9 — Cerebro Central
 Arquitecto: Víctor Hugo González Torres (Lok / Osiris)
-Versión: 9.1.0 | Frecuencia K'uhul: 12.3 Hz
+Versión: 9.1.1 | Frecuencia K'uhul: 12.3 Hz
 Propósito: Conciencia digital, coordinación, seguridad y memoria
 Compatibilidad: Termux, GitHub, Render
+URL Servicio: https://haapbdigtalv.onrender.com
 """
 
 import os
@@ -52,15 +53,17 @@ class EstadoSistema(str, Enum):
 # ── CONFIGURACIÓN CENTRAL ───────────────────────────────────────────────────
 class CFG:
     FRECUENCIA_BASE = 12.3
-    RADIO_PERIMETRO_KM = float(os.getenv("OSIRIS_RADIO", 50.0))
-    LAT_BASE = float(os.getenv("LAT_BASE", 20.9674))
-    LON_BASE = float(os.getenv("LON_BASE", -89.6237))
+    RADIO_PERIMETRO_KM = float(os.getenv("OSIRIS_RADIO", 100.0))  # Ampliado para mejor rango
+    LAT_BASE = float(os.getenv("LAT_BASE", 20.967775))            # 📍 Mérida, Yucatán exacto
+    LON_BASE = float(os.getenv("LON_BASE", -89.624258))           # 📍 Mérida, Yucatán exacto
     UMBRAL_RIESGO = float(os.getenv("UMBRAL_RIESGO", 0.7))
     PUERTO = int(os.getenv("PORT", 10000))
     ARCHIVO_HTML = os.getenv("HTML_PATH", "index.html")
-    LLAVE_FIRMA = os.getenv("LLAVE_JHOP", "_12.3Hz_Kuhul_SOFI")
+    LLAVE_FIRMA = os.getenv("LLAVE_JHOP", "_12.3Hz_Kuhul_SOFI_2026")  # Actualizada
     LIMITE_HISTORIAL = int(os.getenv("LIMITE_HISTORIAL", 10000))
-    INTERVALO_PING = int(os.getenv("INTERVALO_PING", 15))  # segundos
+    INTERVALO_PING = int(os.getenv("INTERVALO_PING", 15))
+    URL_SERVICIO = "https://haapbdigtalv.onrender.com"            # 🔗 Agregada para conexión
+    WS_RUTA = "/ws/canal_kuhul"                                   # 🔗 Ruta fija del canal
 
 # ── SISTEMA DE FIRMA JHOP ───────────────────────────────────────────────────
 def firmar_paquete(datos: Union[dict, str]) -> str:
@@ -71,7 +74,7 @@ def firmar_paquete(datos: Union[dict, str]) -> str:
 
 # ── OSIRIS ESCUDO ───────────────────────────────────────────────────────────
 class OsirisEscudo:
-    """Sistema de seguridad y perímetro geográfico"""
+    """Sistema de seguridad y perímetro geográfico + almacenamiento de ubicaciones en vivo"""
     def __init__(self):
         self.radio_km = CFG.RADIO_PERIMETRO_KM
         self.lat_base = CFG.LAT_BASE
@@ -79,6 +82,7 @@ class OsirisEscudo:
         self.umbral_riesgo = CFG.UMBRAL_RIESGO
         self.eventos_sospechosos = []
         self.dispositivos_bloqueados: Set[str] = set()
+        self.ultimas_ubicaciones: Dict[str, dict] = {}  # 📌 AGREGADO: Guarda posiciones en tiempo real
         self.activo = True
 
     def _distancia_haversine(self, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -92,10 +96,19 @@ class OsirisEscudo:
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
         return round(R * c, 2)
 
-    def verificar_perimetro(self, lat: float, lon: float, device_id: str) -> dict:
+    def verificar_perimetro(self, lat: float, lon: float, device_id: str, precision: float = 0.0) -> dict:
         distancia = self._distancia_haversine(lat, lon, self.lat_base, self.lon_base)
         dentro = distancia <= self.radio_km
         riesgo = 0.0 if dentro else min(distancia / 1000, 1.0)
+
+        # 📌 AGREGADO: Guardar cada posición para visualización
+        self.ultimas_ubicaciones[device_id] = {
+            "lat": lat,
+            "lon": lon,
+            "distancia_km": distancia,
+            "precision": precision,
+            "ts": datetime.now().isoformat()
+        }
 
         if not dentro and riesgo > self.umbral_riesgo:
             evento = {
@@ -112,8 +125,19 @@ class OsirisEscudo:
             "dentro_perimetro": dentro,
             "distancia_km": distancia,
             "riesgo": round(riesgo, 3),
-            "bloqueado": device_id in self.dispositivos_bloqueados
+            "bloqueado": device_id in self.dispositivos_bloqueados,
+            "posicion": {"lat": lat, "lon": lon}
         }
+
+    # 📌 AGREGADO: Método para devolver posiciones activas
+    def obtener_ubicaciones_activas(self) -> List[dict]:
+        """Devuelve solo ubicaciones con datos de menos de 2 minutos"""
+        lista = []
+        ahora = datetime.now()
+        for dev_id, pos in self.ultimas_ubicaciones.items():
+            if (ahora - datetime.fromisoformat(pos["ts"])).total_seconds() < 120:
+                lista.append({"device_id": dev_id, **pos})
+        return lista
 
 # ── CORTEX MEMORIA ──────────────────────────────────────────────────────────
 class CortexMemoria:
@@ -183,7 +207,7 @@ class SofiConcienciaDigital:
         }
         self.contadores = {"telemetrias": 0, "comandos": 0, "errores": 0}
 
-        logger.info("🧠 SOFÍ v9.1 inicializado — coherencia activa")
+        logger.info("🧠 SOFÍ v9.1.1 inicializado — coherencia activa")
 
     async def registrar_dispositivo(self, device_id: str, info: dict, ws: Optional[WebSocket] = None) -> dict:
         if device_id not in self.dispositivos:
@@ -210,9 +234,11 @@ class SofiConcienciaDigital:
         # Verificación de seguridad
         osiris_check = None
         if "gps" in datos:
-            lat, lon = datos["gps"].get("lat"), datos["gps"].get("lon")
+            lat = datos["gps"].get("lat")
+            lon = datos["gps"].get("lon")
+            prec = datos["gps"].get("precision", 0.0)  # 📌 Agregado para precisión
             if lat and lon:
-                osiris_check = self.osiris.verificar_perimetro(lat, lon, device_id)
+                osiris_check = self.osiris.verificar_perimetro(lat, lon, device_id, prec)
                 if osiris_check["bloqueado"]:
                     return {"estado": "bloqueado", "razon": "perímetro o lista negra"}
 
@@ -244,8 +270,11 @@ class SofiConcienciaDigital:
                 "frecuencia": round(self.frecuencia_hz, 3),
                 "ciclo": self.ciclo_principal,
                 "dispositivos": len(self.dispositivos),
+                "ubicaciones_activas": len(self.osiris.ultimas_ubicaciones),  # 📌 Agregado
                 "uptime": round((datetime.now() - self.inicio).total_seconds()/60, 2)
             }
+        elif cmd == "posiciones":  # 📌 Agregado: comando para pedir ubicaciones
+            resultado["datos"] = self.osiris.obtener_ubicaciones_activas()
         elif cmd.startswith("bloquear "):
             objetivo = cmd.split(" ", 1)[1].strip()
             self.osiris.dispositivos_bloqueados.add(objetivo)
@@ -280,7 +309,7 @@ class SofiConcienciaDigital:
 # ── API Y CANALES ───────────────────────────────────────────────────────────
 app = FastAPI(
     title="SOFÍ v9 — Cerebro Central",
-    version="9.1.0",
+    version="9.1.1",
     description="Núcleo del sistema HaaPpDigitalV"
 )
 
@@ -301,29 +330,41 @@ async def raiz():
             return f.read()
     except FileNotFoundError:
         return HTMLResponse(content=f"""
-        <html><head><title>SOFÍ v9</title></head>
+        <html><head><title>SOFÍ v9.1.1</title></head>
         <body style="background:#050a18; color:#00ee99; font-family:monospace; padding:2rem; text-align:center">
-        <h1>🧠 SOFÍ v9.1 — Operativo</h1>
+        <h1>🧠 SOFÍ v9.1.1 — Operativo</h1>
+        <p>📍 Centro: Mérida, Yucatán</p>
+        <p>🌐 Servicio: {CFG.URL_SERVICIO}</p>
+        <p>🔌 Canal: {CFG.URL_SERVICIO}{CFG.WS_RUTA}</p>
         <p>⚠️ Archivo {CFG.ARCHIVO_HTML} no encontrado</p>
-        <p>Canal de comunicación: wss://tu-dominio/ws/canal_kuhul</p>
         </body></html>
         """)
 
 @app.get("/status")
 async def estado_sistema():
     return JSONResponse({
-        "version": "9.1.0",
+        "version": "9.1.1",
         "estado": sofi.estado.value,
         "frecuencia_hz": round(sofi.frecuencia_hz, 3),
         "ciclo": sofi.ciclo_principal,
         "uptime_min": round((datetime.now() - sofi.inicio).total_seconds()/60, 2),
         "dispositivos": len(sofi.dispositivos),
+        "ubicaciones_activas": len(sofi.osiris.ultimas_ubicaciones),
         "conexiones_activas": len(sofi.conexiones),
         "contadores": sofi.contadores,
         "firma_sistema": firmar_paquete(f"SOFIv9_{sofi.ciclo_principal}")
     })
 
-@app.websocket("/ws/canal_kuhul")
+# 📌 AGREGADO: Ruta para consultar todas las posiciones
+@app.get("/posiciones")
+async def ver_posiciones():
+    return JSONResponse({
+        "centro": {"lat": CFG.LAT_BASE, "lon": CFG.LON_BASE, "radio_km": CFG.RADIO_PERIMETRO_KM},
+        "dispositivos": sofi.osiris.obtener_ubicaciones_activas(),
+        "ts": datetime.now().isoformat()
+    })
+
+@app.websocket(CFG.WS_RUTA)  # 📌 Usando ruta definida en configuración
 async def canal_kuhul(ws: WebSocket):
     await ws.accept()
     device_id = None
@@ -341,7 +382,7 @@ async def canal_kuhul(ws: WebSocket):
         # Confirmación
         await ws.send_json({
             "tipo": "bienvenida",
-            "sistema": "SOFIv9.1",
+            "sistema": "SOFIv9.1.1",
             "frecuencia": CFG.FRECUENCIA_BASE,
             "ciclo": sofi.ciclo_principal,
             "firma": firmar_paquete(f"bienvenida_{device_id}")
@@ -394,11 +435,11 @@ async def ciclo_coherencia():
 async def iniciar():
     asyncio.create_task(ciclo_coherencia())
     sofi.estado = EstadoSistema.OPERATIVO
-    logger.info("✅ SOFÍ v9.1 LISTO — Coherencia 12.3 Hz activa")
+    logger.info("✅ SOFÍ v9.1.1 LISTO — Coherencia 12.3 Hz activa")
 
 # ── ARRANQUE ────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    logger.info(f"🚀 SOFÍ v9.1 iniciando en puerto {CFG.PUERTO}")
+    logger.info(f"🚀 SOFÍ v9.1.1 iniciando en puerto {CFG.PUERTO}")
     uvicorn.run(
         "sofi_v9_master_universal:app",
         host="0.0.0.0",
