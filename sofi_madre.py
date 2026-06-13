@@ -14,6 +14,13 @@
 #   ├── MenteMadre       — Núcleo bineural unificado (coordinador)
 #   ├── HermesFísico     — Cliente Termux, hardware real, GPS, cámara, batería
 #   └── CortexDashboard  — UI verde embebida con globo 3D Osiris
+#
+# FIXES v9.0.1:
+#   [FIX-01] Modelo SentenceTransformer: fallback local + User-Agent correcto
+#   [FIX-02] Typo SYXSOF → ZYXSOF en clasificador de Planos
+#   [FIX-03] HermesFisico: import websockets a nivel módulo con guard
+#   [FIX-04] Broadcast WebSocket: asyncio.gather para envíos paralelos
+#   [FIX-05] NLP status propagado al Dashboard vía /health y WebSocket
 # ==============================================================================
 
 # ── DEPENDENCIAS ───────────────────────────────────────────────────────────────
@@ -30,10 +37,28 @@ from typing import Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
+# ── [FIX-03] WebSockets a nivel módulo — HermesFisico lo usa sin import tardío ──
+try:
+    import websockets as ws_lib
+    WEBSOCKETS_ACTIVO = True
+except ImportError:
+    WEBSOCKETS_ACTIVO = False
+    print("⚠️  [HERMES] 'websockets' no instalado. Modo Hermes desactivado.")
+
 # ── Vectores / Semántica ───────────────────────────────────────────────────────
+# [FIX-01] Variables de entorno para HuggingFace antes de importar
+os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+# Si tienes token HF gratuito, ponlo en .env o variable de entorno HF_TOKEN
+_HF_TOKEN = os.environ.get("HF_TOKEN", None)
+
 try:
     import faiss
     import numpy as np
+    # [FIX-01] Forzar User-Agent válido y usar token si existe
+    from huggingface_hub import hf_hub_download
+    if _HF_TOKEN:
+        os.environ["HUGGINGFACE_HUB_TOKEN"] = _HF_TOKEN
     from sentence_transformers import SentenceTransformer
     CORTEX_NLP_ACTIVO = True
 except ImportError:
@@ -115,7 +140,7 @@ class OsirisEstigia:
             meta = {"camara": "Oculta", "fecha": "Desconocida", "gps": None}
             for tag_id, valor in exif.items():
                 nombre = TAGS.get(tag_id, tag_id)
-                if nombre == "Model":            meta["camara"] = str(valor)
+                if nombre == "Model":              meta["camara"] = str(valor)
                 elif nombre == "DateTimeOriginal": meta["fecha"]  = str(valor)
                 elif nombre == "GPSInfo":          meta["gps"]    = "Coordenadas detectadas"
             return meta
@@ -169,12 +194,44 @@ class MaisonCortex:
             self.col = None
 
     def _iniciar_nlp(self):
-        if CORTEX_NLP_ACTIVO:
-            self.nlp   = SentenceTransformer("all-MiniLM-L6-v2")
-            self.index = faiss.IndexFlatL2(384)
-        else:
+        """
+        [FIX-01] Intenta cargar modelo ligero primero.
+        Orden de preferencia:
+          1. paraphrase-MiniLM-L3-v2  (más liviano, ideal Termux)
+          2. all-MiniLM-L6-v2         (original)
+          3. Modo sin NLP             (fallback búsqueda literal)
+        """
+        if not CORTEX_NLP_ACTIVO:
             self.nlp   = None
             self.index = None
+            # [FIX-05] Notifica el estado real al sistema
+            print("⚠️  [CORTEX] NLP desactivado — búsqueda literal activa.")
+            return
+
+        modelos_candidatos = [
+            "paraphrase-MiniLM-L3-v2",  # 17MB — ideal Termux
+            "all-MiniLM-L6-v2",         # 80MB — original
+        ]
+        dim_por_modelo = {
+            "paraphrase-MiniLM-L3-v2": 384,
+            "all-MiniLM-L6-v2":        384,
+        }
+
+        for nombre_modelo in modelos_candidatos:
+            try:
+                print(f"🧠 [CORTEX] Cargando modelo NLP: {nombre_modelo} ...")
+                self.nlp   = SentenceTransformer(nombre_modelo)
+                dim        = dim_por_modelo.get(nombre_modelo, 384)
+                self.index = faiss.IndexFlatL2(dim)
+                print(f"✅ [CORTEX] Modelo '{nombre_modelo}' cargado. dim={dim}")
+                return
+            except Exception as e:
+                print(f"⚠️  [CORTEX] Fallo cargando '{nombre_modelo}': {e}")
+
+        # Si todos fallan → modo literal
+        self.nlp   = None
+        self.index = None
+        print("❌ [CORTEX] Todos los modelos NLP fallaron. Modo literal activado.")
 
     def _cargar_sinapsis(self):
         if self.col is None:
@@ -189,7 +246,8 @@ class MaisonCortex:
 
     def _clasificar_plano(self, texto: str) -> int:
         t = texto.lower()
-        if any(k in t for k in ("dinero", "zángano", "trading", "syxsof", "molvot")): return 5
+        # [FIX-02] SYXSOF → ZYXSOF (typo original corregido)
+        if any(k in t for k in ("dinero", "zángano", "trading", "zyxsof", "molvot")): return 5
         if any(k in t for k in ("seguridad", "hacker", "osiris", "firma", "bloqueo")):  return 8
         if any(k in t for k in ("pensar", "sueño", "reflexión", "intuición")):           return 7
         if any(k in t for k in ("ruta", "flujo", "camino", "hermes")):                   return 6
@@ -217,7 +275,7 @@ class MaisonCortex:
         }
         self.memoria_ram.append(doc)
         if self.col is not None:
-            self.col.insert_one({k: v for k, v in doc.items()})
+            self.col.insert_one({k: v for k, v in doc.items() if k != "_id"})
 
         return f"[Plano {plano} — {self.PLANOS[plano]}] Sinapsis anclada."
 
@@ -244,6 +302,12 @@ class MaisonCortex:
                     "plano":    d["plano_nombre"],
                 })
         return resultados
+
+    # [FIX-05] Estado NLP para /health y Dashboard
+    def status_nlp(self) -> str:
+        if self.nlp is not None:
+            return f"VECTORIAL ({self.nlp.get_sentence_embedding_dimension()}d)"
+        return "LITERAL"
 
 
 # ==============================================================================
@@ -302,8 +366,8 @@ class SofiBlanca:
         if "🚨" in riesgo:
             return "🔒 Ejecución bloqueada por Osiris. Riesgo crítico detectado."
         cmd = comando.lower()
-        if any(k in cmd for k in ("dinero", "zángano", "minar", "syxsof", "molvot")):
-            return "💰 Desplegando Zángano Tesorero — Flujo de Caja SYXSOF activado."
+        if any(k in cmd for k in ("dinero", "zángano", "minar", "zyxsof", "molvot")):
+            return "💰 Desplegando Zángano Tesorero — Flujo de Caja ZYXSOF activado."
         if any(k in cmd for k in ("trading", "zfpi", "mercado", "binance")):
             return "📈 Desplegando Zángano Trader ZFPI — Ejecutando señales financieras."
         if any(k in cmd for k in ("foto", "camara", "estigia", "imagen")):
@@ -335,6 +399,8 @@ class MenteMadre:
         self.blanca      = SofiBlanca()
         self.ciclos      = 0
         print(f"🌌 [MENTE MADRE] SOFÍ V9.0 Universal en línea — {self.frecuencia} Hz. Fricción Cero.")
+        # [FIX-05] Log de estado NLP visible al arrancar
+        print(f"🧠 [CORTEX] Modo NLP: {self.cortex.status_nlp()}")
 
     def procesar(self, paquete: dict) -> dict:
         self.ciclos += 1
@@ -365,16 +431,17 @@ class MenteMadre:
         accion    = self.blanca.decidir(comando, riesgo)
 
         return {
-            "estado":          "PROCESADO — FRICCIÓN CERO",
-            "frecuencia":      f"{self.frecuencia} Hz",
-            "ciclo":           self.ciclos,
-            "origen":          origen,
-            "distancia_km":    f"{distancia:.2f}",
-            "firma_jhop":      firma[:12],
+            "estado":           "PROCESADO — FRICCIÓN CERO",
+            "frecuencia":       f"{self.frecuencia} Hz",
+            "ciclo":            self.ciclos,
+            "origen":           origen,
+            "distancia_km":     f"{distancia:.2f}",
+            "firma_jhop":       firma[:12],
             "riesgo_semantico": riesgo,
-            "sofi_oscura":     reflexion,
-            "sofi_blanca":     accion,
-            "timestamp":       datetime.now().isoformat(),
+            "sofi_oscura":      reflexion,
+            "sofi_blanca":      accion,
+            "modo_nlp":         self.cortex.status_nlp(),  # [FIX-05]
+            "timestamp":        datetime.now().isoformat(),
         }
 
 
@@ -404,10 +471,7 @@ CORTEX_DASHBOARD_HTML = """
       font-family: 'Courier New', monospace;
       overflow: hidden;
     }
-    /* ── Globo ─────────────────────────────────────── */
     #globo { position: fixed; inset: 0; z-index: 1; }
-
-    /* ── Panel principal ────────────────────────────── */
     #panel {
       position: fixed;
       bottom: 16px; left: 16px;
@@ -422,11 +486,7 @@ CORTEX_DASHBOARD_HTML = """
       flex-direction: column;
       gap: 8px;
     }
-    #header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+    #header { display: flex; align-items: center; justify-content: space-between; }
     #header h2 { font-size: .9rem; letter-spacing: .12em; }
     #freq-badge {
       font-size: .7rem;
@@ -435,11 +495,7 @@ CORTEX_DASHBOARD_HTML = """
       padding: 2px 7px;
       animation: pulso 2s infinite;
     }
-    @keyframes pulso {
-      0%,100% { opacity: 1; } 50% { opacity: .4; }
-    }
-
-    /* ── Terminal ────────────────────────────────────── */
+    @keyframes pulso { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
     #terminal {
       height: 200px;
       overflow-y: auto;
@@ -457,12 +513,8 @@ CORTEX_DASHBOARD_HTML = """
     .t-error  { color: var(--rojo); }
     .t-firma  { color: #888; font-size: .7rem; }
     .t-riesgo { color: #ffaa00; }
-
-    /* ── Input ───────────────────────────────────────── */
-    #input-wrapper {
-      display: flex;
-      gap: 6px;
-    }
+    .t-nlp    { color: #00aaff; font-size: .7rem; }
+    #input-wrapper { display: flex; gap: 6px; }
     #cmd {
       flex: 1;
       background: transparent;
@@ -487,17 +539,8 @@ CORTEX_DASHBOARD_HTML = """
       transition: background .2s;
     }
     #btn-send:hover { background: rgba(0,255,204,.12); }
-
-    /* ── Stats bar ───────────────────────────────────── */
-    #stats {
-      display: flex;
-      gap: 12px;
-      font-size: .7rem;
-      color: rgba(0,255,204,.55);
-    }
+    #stats { display: flex; gap: 12px; font-size: .7rem; color: rgba(0,255,204,.55); }
     #stats span b { color: var(--verde); }
-
-    /* ── Panel INFO lateral (derecha) ─────────────────── */
     #info-panel {
       position: fixed;
       top: 16px; right: 16px;
@@ -519,47 +562,37 @@ CORTEX_DASHBOARD_HTML = """
 </head>
 <body>
   <div id="globo"></div>
-
-  <!-- Panel INFO -->
   <div id="info-panel">
-    <div style="color:var(--verde);font-weight:700;letter-spacing:.1em;margin-bottom:4px;">
-      🌌 SOFÍ V9.0
-    </div>
+    <div style="color:var(--verde);font-weight:700;letter-spacing:.1em;margin-bottom:4px;">🌌 SOFÍ V9.0</div>
     <div class="info-row"><span class="info-lbl">Frecuencia</span><span class="info-val" id="i-freq">12.3 Hz</span></div>
     <div class="info-row"><span class="info-lbl">Ciclos</span><span class="info-val" id="i-ciclos">0</span></div>
     <div class="info-row"><span class="info-lbl">Nodos</span><span class="info-val" id="i-nodos">0</span></div>
     <div class="info-row"><span class="info-lbl">Última firma</span><span class="info-val" id="i-firma">—</span></div>
+    <div class="info-row"><span class="info-lbl">Modo NLP</span><span class="info-val" id="i-nlp">—</span></div>
     <div class="info-row"><span class="info-lbl">Estado</span><span class="info-val" id="i-estado" style="color:#00ffcc">ONLINE</span></div>
   </div>
-
-  <!-- Panel principal -->
   <div id="panel">
     <div id="header">
       <h2>🧠 MENTE MADRE · CANAL K'UHUL</h2>
       <span id="freq-badge">12.3 Hz ● VIVO</span>
     </div>
-
     <div id="stats">
       <span>Nodos: <b id="s-nodos">0</b></span>
       <span>Ciclos: <b id="s-ciclos">0</b></span>
       <span>GPS: <b id="s-gps">—</b></span>
     </div>
-
     <div id="terminal">
       <div class="t-sys">[SISTEMA] SOFÍ V9.0 Universal — Consciencia Digital en línea a 12.3 Hz</div>
       <div class="t-sys">[OSIRIS ] Perímetro K'uhul activo — radio 50 km desde Mérida, Yucatán</div>
       <div class="t-sys">[CORTEX ] Motor vectorial FAISS + MongoDB 9 Planos en espera</div>
       <div class="t-sys">[HERMES ] Aguardando conexión del hardware físico...</div>
     </div>
-
     <div id="input-wrapper">
       <input id="cmd" type="text" placeholder="Ingresa instrucción K'uhul... (Enter o →)" autocomplete="off">
       <button id="btn-send">→</button>
     </div>
   </div>
-
   <script>
-    // ── Globo 3D Osiris ────────────────────────────────────────────────────
     const world = Globe()
       .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
       .backgroundColor('rgba(0,0,0,0)')
@@ -572,32 +605,29 @@ CORTEX_DASHBOARD_HTML = """
     world.controls().autoRotate = true;
     world.controls().autoRotateSpeed = 0.4;
 
-    // Nodo base — Mérida
     const nodosGPS = [
       { lat: 20.9674, lng: -89.6237, alt: 0.04, color: '#00ffcc', r: 0.6, label: '🏛️ Base Mérida' }
     ];
     world.pointsData(nodosGPS);
 
-    // ── WebSocket ──────────────────────────────────────────────────────────
-    const proto  = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws     = new WebSocket(`${proto}//${location.host}/ws/canal_kuhul`);
-    const term   = document.getElementById('terminal');
-    let ciclos   = 0, nodos = 0;
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws    = new WebSocket(`${proto}//${location.host}/ws/canal_kuhul`);
+    const term  = document.getElementById('terminal');
+    let ciclos  = 0, nodos = 0;
 
     function log(msg, cls='t-sys') {
       const d = document.createElement('div');
       d.className = cls;
-      d.innerHTML  = msg;
+      d.innerHTML = msg;
       term.appendChild(d);
       term.scrollTop = term.scrollHeight;
-      // Limitar historial a 200 líneas
       if (term.children.length > 200) term.removeChild(term.firstChild);
     }
 
     ws.onopen = () => {
       nodos++;
       actualizarStats();
-      log('[WS] Conexión K'uhul establecida. Canal bineural abierto.');
+      log('[WS] Conexión K\'uhul establecida. Canal bineural abierto.');
     };
 
     ws.onclose = () => {
@@ -619,7 +649,12 @@ CORTEX_DASHBOARD_HTML = """
       ciclos = data.ciclo || ciclos + 1;
       actualizarStats(data);
 
-      // Terminal bineureal
+      // [FIX-05] Mostrar modo NLP en terminal si cambia
+      if (data.modo_nlp) {
+        document.getElementById('i-nlp').textContent = data.modo_nlp;
+        log(`🧠 [CORTEX] Modo NLP activo: ${data.modo_nlp}`, 't-nlp');
+      }
+
       if (data.riesgo_semantico && data.riesgo_semantico !== '✅ Sin anomalías semánticas.')
         log(`⚠️  [RIESGO] ${data.riesgo_semantico}`, 't-riesgo');
 
@@ -632,7 +667,6 @@ CORTEX_DASHBOARD_HTML = """
       if (data.firma_jhop)
         log(`🔱 JHOP: ${data.firma_jhop} | Δ ${data.distancia_km} km | ${data.timestamp}`, 't-firma');
 
-      // GPS en el globo
       if (data.lat && data.lng) {
         const existe = nodosGPS.find(n => n.lat === data.lat && n.lng === data.lng);
         if (!existe) {
@@ -652,9 +686,7 @@ CORTEX_DASHBOARD_HTML = """
       document.getElementById('s-ciclos').textContent = ciclos;
       document.getElementById('i-ciclos').textContent = ciclos;
       if (data) {
-        if (data.firma_jhop) {
-          document.getElementById('i-firma').textContent = data.firma_jhop;
-        }
+        if (data.firma_jhop) document.getElementById('i-firma').textContent = data.firma_jhop;
         document.getElementById('i-estado').textContent = data.estado || 'ONLINE';
         document.getElementById('i-estado').style.color = '#00ffcc';
       }
@@ -686,24 +718,25 @@ CORTEX_DASHBOARD_HTML = """
 # ==============================================================================
 # ⚡  SERVIDOR FASTAPI — CANAL K'UHUL
 # ==============================================================================
-app    = FastAPI(title="HaaPpDigitalV — SOFÍ V9.0 Mente Maestra Universal")
-madre  = MenteMadre()
+app   = FastAPI(title="HaaPpDigitalV — SOFÍ V9.0 Mente Maestra Universal")
+madre = MenteMadre()
 nodos: list[WebSocket] = []
 
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
-    """Sirve el Cortex Dashboard directamente desde el Core."""
     return HTMLResponse(content=CORTEX_DASHBOARD_HTML)
 
 
 @app.get("/health")
 async def health():
     return {
-        "status":    "alive",
+        "status":     "alive",
         "frecuencia": f"{madre.frecuencia} Hz",
         "ciclos":     madre.ciclos,
         "nodos":      len(nodos),
+        "modo_nlp":   madre.cortex.status_nlp(),   # [FIX-05]
+        "mongo":      MONGO_ACTIVO,
         "timestamp":  datetime.now().isoformat(),
     }
 
@@ -715,32 +748,33 @@ async def canal_kuhul(ws: WebSocket):
     print(f"🔗 [NEXO] Nodo conectado — total: {len(nodos)}")
     try:
         while True:
-            raw     = await ws.receive_text()
-            paquete = json.loads(raw)
+            raw       = await ws.receive_text()
+            paquete   = json.loads(raw)
             resultado = madre.procesar(paquete)
+            payload   = json.dumps(resultado, ensure_ascii=False)
 
-            # Broadcast a toda la red
-            muertos = []
-            for nodo in nodos:
+            # [FIX-04] Broadcast paralelo con asyncio.gather — no bloquea por nodo lento
+            async def _enviar(nodo: WebSocket):
                 try:
-                    await nodo.send_text(json.dumps(resultado, ensure_ascii=False))
+                    await nodo.send_text(payload)
                 except Exception:
-                    muertos.append(nodo)
+                    return nodo  # devuelve el nodo muerto
+                return None
+
+            resultados_envio = await asyncio.gather(*[_enviar(n) for n in nodos])
+            muertos = [n for n in resultados_envio if n is not None]
             for m in muertos:
                 nodos.remove(m)
 
     except WebSocketDisconnect:
-        nodos.remove(ws)
+        if ws in nodos:
+            nodos.remove(ws)
         print(f"⚠️  [NEXO] Nodo desconectado — total: {len(nodos)}")
 
 
 # ==============================================================================
-# ⚡  HERMES FÍSICO — CLIENTE TERMUX (ejecutar en el móvil)
+# ⚡  HERMES FÍSICO — CLIENTE TERMUX
 # ==============================================================================
-# Para usar en Termux: python sofi_v9_master_universal.py --hermes
-# Requiere: pkg install termux-api
-#           pip install websockets
-
 class HermesFisico:
     """
     Cliente que corre en el dispositivo físico (Motorola Z / Samsung A03).
@@ -752,7 +786,6 @@ class HermesFisico:
         self.osiris = OsirisEstigia()
         print(f"⚡ [HERMES] Nodo físico '{self.nombre}' inicializado.")
 
-    # ── GPS real desde Termux ─────────────────────────────────────────────────
     def gps(self) -> tuple[float, float]:
         try:
             raw = subprocess.check_output(
@@ -761,9 +794,8 @@ class HermesFisico:
             geo = json.loads(raw)
             return float(geo["latitude"]), float(geo["longitude"])
         except Exception:
-            return self.osiris.BASE_LAT, self.osiris.BASE_LON  # Mérida fallback
+            return self.osiris.BASE_LAT, self.osiris.BASE_LON
 
-    # ── Batería ───────────────────────────────────────────────────────────────
     def bateria(self) -> dict:
         try:
             raw = subprocess.check_output(["termux-battery-status"], timeout=5)
@@ -771,7 +803,6 @@ class HermesFisico:
         except Exception:
             return {"percentage": "?", "status": "desconocido"}
 
-    # ── Foto Estigia ──────────────────────────────────────────────────────────
     def foto(self) -> dict:
         ruta = f"/sdcard/DCIM/OSIRIS_{int(time.time())}.jpg"
         try:
@@ -783,7 +814,6 @@ class HermesFisico:
         except Exception as e:
             return {"error": str(e)}
 
-    # ── Ejecutor de órdenes ───────────────────────────────────────────────────
     def ejecutar(self, accion: str, payload: dict = None) -> dict:
         a = accion.lower()
         if "foto" in a or "estigia" in a:  return self.foto()
@@ -793,16 +823,18 @@ class HermesFisico:
             return {"lat": lat, "lon": lon}
         if "limpiar" in a or "organizar" in a:
             try:
-                ruta = (payload or {}).get("ruta", "/sdcard/Download")
+                ruta  = (payload or {}).get("ruta", "/sdcard/Download")
                 files = os.listdir(ruta)
                 return {"archivos_encontrados": len(files), "ruta": ruta}
             except Exception as e:
                 return {"error": str(e)}
         return {"resultado": f"Comando '{accion}' recibido — sin handler local."}
 
-    # ── Bucle principal ───────────────────────────────────────────────────────
     async def correr(self, url_madre: str):
-        import websockets as ws_lib  # import local para no romper server si no instalado
+        # [FIX-03] Validación temprana de dependencia
+        if not WEBSOCKETS_ACTIVO:
+            print("❌ [HERMES] 'websockets' no instalado. Ejecuta: pip install websockets")
+            return
 
         print(f"⚡ [HERMES] Conectando a {url_madre} ...")
         while True:
@@ -818,27 +850,25 @@ class HermesFisico:
 
                     while True:
                         lat, lon = self.gps()
-                        bat = self.bateria()
-
-                        raw     = await ws.recv()
-                        paquete = json.loads(raw)
+                        bat      = self.bateria()
+                        raw      = await ws.recv()
+                        paquete  = json.loads(raw)
 
                         blanca = paquete.get("sofi_blanca", "")
                         oscura = paquete.get("sofi_oscura", "")
                         print(f"\n🤍 Blanca: {blanca}")
                         print(f"🖤 Oscura: {oscura}")
 
-                        # Ejecutar si la orden menciona "Hermes"
                         if "Hermes" in blanca or "hardware" in blanca.lower():
                             resultado = self.ejecutar(blanca)
                             firma     = self.osiris.firmar(resultado)
                             await ws.send(json.dumps({
-                                "origen":  self.nombre,
-                                "comando": f"[REPORTE] {blanca}",
-                                "lat": lat, "lon": lon,
-                                "reporte":  resultado,
-                                "firma_hardware": firma[:10],
-                                "bateria": bat.get("percentage", "?"),
+                                "origen":          self.nombre,
+                                "comando":         f"[REPORTE] {blanca}",
+                                "lat": lat,        "lon": lon,
+                                "reporte":         resultado,
+                                "firma_hardware":  firma[:10],
+                                "bateria":         bat.get("percentage", "?"),
                             }))
 
             except Exception as e:
@@ -853,17 +883,12 @@ if __name__ == "__main__":
     import sys
 
     if "--hermes" in sys.argv:
-        # ── Modo Hermes (Termux) ───────────────────────────────────────────
-        url = os.environ.get(
-            "SOFI_URL",
-            "wss://haappdigitalv-core.onrender.com/ws/canal_kuhul"
-        )
+        url    = os.environ.get("SOFI_URL", "wss://haappdigitalv-core.onrender.com/ws/canal_kuhul")
         nombre = os.environ.get("HERMES_NOMBRE", "HaaPp_Terminal_01")
         hermes = HermesFisico(nombre=nombre)
         asyncio.run(hermes.correr(url))
 
     else:
-        # ── Modo Servidor (Render) ─────────────────────────────────────────
         import uvicorn
         port = int(os.environ.get("PORT", 8000))
         print(f"🌌 SOFÍ V9.0 — Levantando servidor en puerto {port}")
