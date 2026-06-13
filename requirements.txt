@@ -31,4 +31,3 @@ websockets==12.0
 python-dotenv==1.0.1
 numpy==1.26.4
 pymongo==4.6.1
-sqlite3
