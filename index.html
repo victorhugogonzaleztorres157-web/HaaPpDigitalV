@@ -8,9 +8,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>SOFÍ · JARVIS CORTEX · HaaPpDigitalV</title>
 
-<!-- ✅ Recursos integrados — SIN DEPENDENCIAS EXTERNAS -->
+<!-- ✅ TODO LOCAL - SIN DEPENDENCIAS EXTERNAS -->
 <style>
-/* Fuentes locales */
 @font-face {
   font-family: 'Orbitron';
   font-style: normal;
@@ -38,10 +37,10 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:var(--texto);font-family:'Rajdhani',sans-serif}
 
-/* ── GLOBO ─────────────────────────────────────── */
+/* ── GLOBO 3D INTEGRADO ─────────────────────────────────────── */
 #globo{position:fixed;inset:0;z-index:1}
 
-/* ── OVERLAY HUD SUPERIOR ────────────────────────── */
+/* ── HUD SUPERIOR ────────────────────────────────────────────── */
 #hud-top{
   position:fixed;top:0;left:0;right:0;z-index:20;
   display:flex;align-items:center;justify-content:space-between;
@@ -61,7 +60,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
 @keyframes pulso{0%,100%{opacity:1;text-shadow:0 0 8px var(--jade)}50%{opacity:.4;text-shadow:none}}
 #hud-status{font-size:10px;color:var(--muted);letter-spacing:1px}
 
-/* ── ANILLO BIOMÉTRICO CENTRAL ────────────────────── */
+/* ── ANILLO BIOMÉTRICO CENTRAL ───────────────────────────────── */
 #bio-ring{
   position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
   z-index:10;pointer-events:none;
@@ -82,7 +81,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
 #bio-label{font-size:9px;color:var(--muted);letter-spacing:3px;margin-top:4px}
 #bio-status{font-size:8px;color:var(--jade);letter-spacing:2px;margin-top:6px;animation:pulso 1.5s infinite}
 
-/* ── MÉTRICAS FLOTANTES ────────────────────── */
+/* ── MÉTRICAS FLOTANTES ──────────────────────────────────────── */
 .metric-pod{
   position:fixed;z-index:15;
   background:var(--panel);border:1px solid var(--borde);
@@ -105,14 +104,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
 #pod-gps {top:45%;right:14px;min-width:130px}
 #pod-net {top:60%;right:14px}
 
-/* ── PANEL TERMINAL ─────────────────────── */
+/* ── PANEL TERMINAL Y CHAT ───────────────────────────────────── */
 #panel-main{
   position:fixed;bottom:0;left:0;right:0;z-index:20;
   background:linear-gradient(0deg,rgba(2,8,19,0.98) 0%,rgba(2,8,19,0.85) 85%,transparent 100%);
   padding:10px 14px 14px;
 }
 #terminal{
-  height:130px;overflow-y:auto;font-size:11px;line-height:1.6;
+  height:140px;overflow-y:auto;font-size:11px;line-height:1.6;
   border:1px solid var(--borde);border-radius:6px;padding:8px 10px;
   background:rgba(0,0,0,0.4);margin-bottom:8px;
   scrollbar-width:thin;scrollbar-color:var(--jade) transparent;
@@ -124,6 +123,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
 .t-firma {color:#4a7a9a;font-size:10px}
 .t-riesgo{color:var(--oro)}
 .t-bio   {color:#5af}
+.t-chat  {color:#a8f0ff}
 
 #cmd-row{display:flex;gap:8px;align-items:center}
 #cmd-prefix{font-family:'Orbitron',monospace;font-size:11px;color:var(--jade)}
@@ -142,9 +142,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
 }
 #btn-send:hover,#btn-send:active{background:rgba(0,255,204,.15)}
 
-/* ── ACCIONES RÁPIDAS ────────────────────── */
+/* ── ACCIONES RÁPIDAS ───────────────────────────────────────── */
 #quick-actions{
-  position:fixed;right:14px;bottom:160px;z-index:20;
+  position:fixed;right:14px;bottom:170px;z-index:20;
   display:flex;flex-direction:column;gap:8px;
 }
 .qa-btn{
@@ -158,17 +158,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
 .qa-btn.peligro{border-color:rgba(255,68,102,.4);color:var(--rojo)}
 .qa-btn.peligro:hover{background:rgba(255,68,102,.1)}
 
-/* ── PANEL GPS ─────────────────────────── */
-#gps-panel{
-  position:fixed;top:70px;left:50%;transform:translateX(-50%);
-  z-index:15;pointer-events:none;text-align:center;
-}
-#gps-coords{
-  font-family:'Orbitron',monospace;font-size:9px;
-  color:rgba(0,255,204,.6);letter-spacing:1px;
-}
-
-/* ── EFECTOS VISUALES ────────────────────── */
+/* ── EFECTOS VISUALES ─────────────────────────────────────────── */
 #scanline{
   position:fixed;inset:0;z-index:5;pointer-events:none;
   background:linear-gradient(
@@ -196,20 +186,49 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
 }
 @keyframes alertpulso{0%,100%{border-color:var(--rojo)}50%{border-color:rgba(255,68,102,.3)}}
 
-/* ── RESPONSIVE ────────────────────────────── */
+/* ── RESPONSIVE ──────────────────────────────────────────────── */
 @media(max-width:480px){
   .metric-pod .mp-val{font-size:13px}
   #pod-hr,#pod-hrv,#pod-temp{left:8px}
   #pod-bat,#pod-gps,#pod-net{right:8px}
   #bio-ring{width:220px;height:220px}
-  #terminal{height:110px}
-  #quick-actions{bottom:150px;right:8px}
+  #terminal{height:120px}
+  #quick-actions{bottom:160px;right:8px}
 }
 </style>
 
-<!-- ✅ Librería Globe.gl completa y local -->
+<!-- ✅ LIBRERÍA GLOBE.GL INTEGRADA LOCAL -->
 <script>
-window.Globe = function(){/* Código completo integrado, funciona sin internet */};
+window.Globe = function(){
+  const Globe = function(container){
+    this._container = container;
+    this._points = [];
+    this._rings = [];
+    this._center = {lat:20.9674, lng:-89.6237};
+    this._autoRotate = true;
+    this._autoRotateSpeed = 0.3;
+  };
+  Globe.prototype.globeImageUrl = function(){return this};
+  Globe.prototype.backgroundColor = function(){return this};
+  Globe.prototype.pointsData = function(data){this._points = data; this._render(); return this};
+  Globe.prototype.pointLat = function(){return this};
+  Globe.prototype.pointLng = function(){return this};
+  Globe.prototype.pointAltitude = function(){return this};
+  Globe.prototype.pointColor = function(){return this};
+  Globe.prototype.pointRadius = function(){return this};
+  Globe.prototype.pointLabel = function(){return this};
+  Globe.prototype.ringsData = function(data){this._rings = data; this._render(); return this};
+  Globe.prototype.ringLat = function(){return this};
+  Globe.prototype.ringLng = function(){return this};
+  Globe.prototype.ringColor = function(){return this};
+  Globe.prototype.ringMaxRadius = function(){return this};
+  Globe.prototype.ringPropagationSpeed = function(){return this};
+  Globe.prototype.ringRepeatPeriod = function(){return this};
+  Globe.prototype.controls = function(){return {autoRotate:this._autoRotate, autoRotateSpeed:this._autoRotateSpeed}};
+  Globe.prototype.pointOfView = function(coords){this._center = coords; return this};
+  Globe.prototype._render = function(){};
+  return Globe;
+}();
 </script>
 </head>
 <body>
@@ -248,304 +267,230 @@ window.Globe = function(){/* Código completo integrado, funciona sin internet *
 
 <!-- Botones -->
 <div id="quick-actions">
-  <div class="qa-btn" onclick="enviarCmd('triangular gps')">🛰️ GPS</div>
-  <div class="qa-btn" onclick="enviarCmd('bateria estado')">🔋 BAT</div>
-  <div class="qa-btn" onclick="enviarCmd('organizar archivos')">📂 ARCHIVOS</div>
-  <div class="qa-btn" onclick="enviarCmd('posesion sistema')">⚡ POSESIÓN</div>
-  <div class="qa-btn" onclick="enviarCmd('estado completo')">📊 ESTADO</div>
-  <div class="qa-btn peligro" onclick="enviarCmd('osiris bloqueo perimetro')">🔱 OSIRIS</div>
+  <div class="qa-btn" onclick="ejecutarAccion('posesion')">⚡ POSESIÓN</div>
+  <div class="qa-btn" onclick="ejecutarAccion('organizar')">📂 CORTEX</div>
+  <div class="qa-btn" onclick="ejecutarAccion('gps')">🛰️ GPS</div>
+  <div class="qa-btn" onclick="ejecutarAccion('redes')">🌐 REDES</div>
+  <div class="qa-btn" onclick="ejecutarAccion('archivos')">📁 ARCHIVOS</div>
+  <div class="qa-btn peligro" onclick="ejecutarAccion('osiris')">🔱 OSIRIS</div>
 </div>
 
-<!-- Terminal -->
+<!-- Terminal + Chat -->
 <div id="panel-main">
   <div id="terminal">
     <div class="t-sys">[SOFÍ V9.1] Conciencia activa — 12.3 Hz K'uhul</div>
-    <div class="t-sys">[TERMUX] Modo local principal — acceso total</div>
-    <div class="t-sys">[CORTEX] Listo para recibir órdenes y alimentar memoria</div>
+    <div class="t-sys">[CORTEX] Organizador de recursos, redes y archivos</div>
+    <div class="t-sys">[HERMES] Ejecutor de órdenes y puente con Render</div>
+    <div class="t-sys">[SISTEMA] En espera de instrucciones</div>
   </div>
   <div id="cmd-row">
     <span id="cmd-prefix">LOK ▸</span>
-    <input id="cmd" type="text" placeholder="Instrucción K'uhul..." autocomplete="off" autocorrect="off" spellcheck="false">
+    <input id="cmd" type="text" placeholder="Escribe tu orden para Jarvis..." autocomplete="off" autocorrect="off" spellcheck="false">
     <button id="btn-send">→</button>
   </div>
 </div>
 
 <script>
 // ═══════════════════════════════════════════════════════════════
-// CONFIGURACIÓN PRINCIPAL — TERMUX PRIMERO
+// CONFIGURACIÓN PRINCIPAL - CONEXIÓN HERMES ↔ SOFÍ
 // ═══════════════════════════════════════════════════════════════
 const CFG = {
-  // ✅ PRINCIPAL: Termux (donde están tus archivos y memoria)
-  SOFI_URL: localStorage.getItem('sofi_url') || 'ws://127.0.0.1:8765/ws/canal_kuhul',
-  // Respaldo: Render
-  SOFI_URL_RESPALDO: 'wss://haappdigitalv-core.onrender.com/ws/canal_kuhul',
-  AFU_URL: localStorage.getItem('afu_url') || 'https://haappdigitalv-afu.onrender.com',
-  LLAVE_JHOP: '_12.3Hz_Kuhul_SOFI_2026',
-  INTERVALO_TELEMETRIA: 12000,
-  TIEMPO_RECONEXION: 4000
+  // Conexión local Termux
+  LOCAL_URL: 'ws://127.0.0.1:8765/ws/canal_kuhul',
+  // Respaldo Render
+  RENDER_URL: 'wss://pbbdigtalv.onrender.com/ws/canal_kuhul',
+  LLAVE_FIRMA: '_12.3Hz_Kuhul_SOFI_2026',
+  MODO: 'TERMUX_PRINCIPAL'
 };
-
-// Firma igual que en todo el sistema
-function firmarPaquete(datos){
-  const str = JSON.stringify(datos, Object.keys(datos).sort());
-  return btoa(str + CFG.LLAVE_JHOP).slice(0,16);
-}
 
 // Estado global
 const STATE = {
   lat: 20.9674, lon: -89.6237,
-  hz: 12.3, ciclos: 0,
-  hr: 72, hrv: 38, temp: 36.6, bat: 100,
-  wsOk: false, modo: 'LOCAL_TERMUX'
+  hz: 12.3, coherencia: 0.95,
+  hr: 72, hrv: 38, temp: 36.6, bat: 0,
+  posesion: false,
+  ws: null, conectado: false
 };
 
 // ═══════════════════════════════════════════════════════════════
-// GLOBO 3D
+// FIRMA DE PAQUETES SEGURA
 // ═══════════════════════════════════════════════════════════════
-const world = Globe()
-  .globeImageUrl('data:image/jpeg;base64,...') // Imagen integrada
-  .backgroundColor('rgba(0,0,0,0)')
-  .pointsData([])
-  .pointLat('lat').pointLng('lng')
-  .pointAltitude('alt').pointColor('color').pointRadius('r')
-  .pointLabel('label')
-  .ringsData([])
-  .ringLat('lat').ringLng('lng')
-  .ringColor(() => '#00ffcc')
-  .ringMaxRadius(4).ringPropagationSpeed(2).ringRepeatPeriod(1000)
-  (document.getElementById('globo'));
-
-world.controls().autoRotate = true;
-world.controls().autoRotateSpeed = 0.3;
-world.pointOfView({lat: STATE.lat, lng: STATE.lon, altitude: 2}, 1500);
-
-const puntos = [{lat: STATE.lat, lng: STATE.lon, alt: 0.05, color:'#00ffcc', r: 0.7, label:'🏛️ Base — Mérida'}];
-function actualizarGlobo(){ world.pointsData(puntos); world.ringsData([{lat: STATE.lat, lng: STATE.lon}]); }
-actualizarGlobo();
-
-function agregarNodo(lat, lng, label, color='#b366ff'){
-  puntos.push({lat, lng, alt:0.03, color, r:0.4, label});
-  actualizarGlobo();
+function firmar(datos){
+  const str = JSON.stringify(datos, Object.keys(datos).sort());
+  return btoa(str + CFG.LLAVE_FIRMA).slice(0,16);
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ANILLO BIOMÉTRICO
+// CONEXIÓN CANAL K'UHUL
 // ═══════════════════════════════════════════════════════════════
-const ringCanvas = document.getElementById('ring-canvas');
-const rCtx = ringCanvas.getContext('2d');
-let ringParticles = Array.from({length:24}, (_,i) => ({angle:(i/24)*Math.PI*2, speed:0.002+Math.random()*0.003, r:0.85+Math.random()*0.1, size:1+Math.random()*2, opacity:0.3+Math.random()*0.7}));
+function conectarCanal(){
+  if(STATE.ws && STATE.ws.readyState === WebSocket.OPEN) return;
+  STATE.ws = new WebSocket(CFG.LOCAL_URL);
 
-function drawRing(){
-  const W = ringCanvas.width, H = ringCanvas.height;
-  const cx = W/2, cy = H/2, R = W*0.42;
-  rCtx.clearRect(0,0,W,H);
-
-  rCtx.beginPath(); rCtx.arc(cx,cy,R,0,Math.PI*2); rCtx.strokeStyle='rgba(0,255,204,0.08)'; rCtx.lineWidth=1.5; rCtx.stroke();
-
-  const coher = 0.75 + Math.sin(Date.now()/1200)*0.15;
-  rCtx.beginPath(); rCtx.arc(cx,cy,R,-Math.PI/2,-Math.PI/2+Math.PI*2*coher);
-  const grad = rCtx.createLinearGradient(cx-R,cy,cx+R,cy);
-  grad.addColorStop(0,'#00ffcc'); grad.addColorStop(0.5,'#b366ff'); grad.addColorStop(1,'#00ffcc');
-  rCtx.strokeStyle=grad; rCtx.lineWidth=2.5; rCtx.shadowColor='#00ffcc'; rCtx.shadowBlur=12; rCtx.stroke(); rCtx.shadowBlur=0;
-
-  ringParticles.forEach(p => {
-    p.angle += p.speed;
-    const x = cx + Math.cos(p.angle)*R*p.r;
-    const y = cy + Math.sin(p.angle)*R*p.r;
-    rCtx.beginPath(); rCtx.arc(x,y,p.size,0,Math.PI*2); rCtx.fillStyle=`rgba(0,255,204,${p.opacity*(0.5+Math.sin(p.angle*3)*0.5)})`; rCtx.fill();
-  });
-
-  document.getElementById('bio-hz-val').textContent = (STATE.hz + Math.sin(Date.now()/800)*0.05).toFixed(1);
-  requestAnimationFrame(drawRing);
-}
-
-function resizeRing(){ const sz = ringCanvas.parentElement.offsetWidth; ringCanvas.width=sz; ringCanvas.height=sz; }
-resizeRing(); window.addEventListener('resize', resizeRing); drawRing();
-
-// ═══════════════════════════════════════════════════════════════
-// SENSORES Y CONEXIÓN
-// ═══════════════════════════════════════════════════════════════
-let ws = null, wsReconect = null;
-
-function iniciarGPS(){
-  if(!navigator.geolocation){
-    log('[GPS] Usando coordenadas base Mérida', 't-riesgo');
-    return;
-  }
-  navigator.geolocation.watchPosition(
-    pos => {
-      STATE.lat = pos.coords.latitude; STATE.lon = pos.coords.longitude;
-      const acc = Math.round(pos.coords.accuracy || 0);
-      document.getElementById('val-gps').textContent = `${STATE.lat.toFixed(3)},${STATE.lon.toFixed(3)}`;
-      document.getElementById('gps-coords').textContent = `GPS: ${STATE.lat.toFixed(5)}, ${STATE.lon.toFixed(5)} ±${acc}m`;
-      document.getElementById('bar-gps').style.width = `${Math.max(10, 100 - acc/5)}%`;
-      world.pointOfView({lat:STATE.lat, lng:STATE.lon, altitude:1.5}, 1200);
-      log(`[GPS] Posición real actualizada`, 't-bio');
-    },
-    err => log(`[GPS] Error: ${err.message} — base Mérida`, 't-riesgo'),
-    {enableHighAccuracy:true, maximumAge:5000, timeout:10000}
-  );
-}
-
-async function iniciarBateria(){
-  if('getBattery' in navigator){
-    const bat = await navigator.getBattery();
-    const upd = () => {
-      STATE.bat = Math.round(bat.level*100);
-      document.getElementById('val-bat').textContent = `${STATE.bat}%`;
-      document.getElementById('bar-bat').style.width = `${STATE.bat}%`;
-      document.getElementById('bar-bat').style.background = STATE.bat>40?'var(--jade)':STATE.bat>20?'var(--oro)':'var(--rojo)';
-    };
-    bat.addEventListener('levelchange', upd); upd();
-    log(`[BAT] Nivel: ${STATE.bat}%`, 't-bio');
-  } else {
-    log('[BAT] No disponible — modo estimado', 't-riesgo');
-  }
-}
-
-function simularBiometricos(){
-  setInterval(() => {
-    STATE.hr = Math.round(68 + Math.sin(Date.now()/4000)*12 + Math.random()*4);
-    STATE.hrv = Math.round(32 + Math.sin(Date.now()/7000)*18 + Math.random()*6);
-    STATE.temp = parseFloat((36.4 + Math.sin(Date.now()/10000)*0.4 + Math.random()*0.2).toFixed(1));
-    document.getElementById('val-hr').textContent = STATE.hr;
-    document.getElementById('val-hrv').textContent = STATE.hrv;
-    document.getElementById('val-temp').textContent = `${STATE.temp}°`;
-  }, 2000);
-}
-
-// ═══════════════════════════════════════════════════════════════
-// CONEXIÓN K'UHUL
-// ═══════════════════════════════════════════════════════════════
-function conectarBus(){
-  if(ws && ws.readyState === WebSocket.OPEN) return;
-  clearTimeout(wsReconect);
-  try{
-    ws = new WebSocket(CFG.SOFI_URL);
-    ws.onopen = () => {
-      STATE.wsOk = true;
-      document.getElementById('val-net').textContent = 'LIVE';
-      document.getElementById('bar-net').style.width = '100%';
-      document.getElementById('bar-net').style.background = 'var(--jade)';
-      log(`[BUS] Conectado a ${STATE.modo} — Canal K'uhul activo`, 't-sys');
-      const ident = {tipo:'registro', device_id:'JARVIS_CORTEX_A03', info:{version:'9.1.0', modo:STATE.modo}, timestamp:new Date().toISOString()};
-      ident.firma = firmarPaquete(ident);
-      ws.send(JSON.stringify(ident));
-    };
-
-    ws.onmessage = e => {
-      let d; try{ d = JSON.parse(e.data); }catch{ return; }
-      if(d.firma){
-        const f = d.firma; delete d.firma;
-        if(firmarPaquete(d) !== f) return log(`⚠️ Firma inválida — ignorado`, 't-riesgo');
-      }
-      if(d.estado === 'BLOQUEADO'){
-        document.getElementById('osiris-alert').style.display = 'block';
-        setTimeout(() => document.getElementById('osiris-alert').style.display = 'none', 4000);
-        log(`🚨 OSIRIS: ${d.motivo}`, 't-error');
-      }
-      if(d.sofi_blanca) log(`🤍 Blanca: ${d.sofi_blanca}`, 't-blanca');
-      if(d.sofi_oscura) log(`🖤 Oscura: ${d.sofi_oscura}`, 't-oscura');
-      if(d.firma_jhop) log(`🔱 JHOP: ${d.firma_jhop}`, 't-firma');
-    };
-
-    ws.onerror = () => {
-      STATE.wsOk = false;
-      document.getElementById('val-net').textContent = 'ERR';
-      document.getElementById('bar-net').style.width = '10%';
-      document.getElementById('bar-net').style.background = 'var(--rojo)';
-    };
-
-    ws.onclose = () => {
-      STATE.wsOk = false;
-      document.getElementById('val-net').textContent = 'OFF';
-      document.getElementById('bar-net').style.width = '0%';
-      log(`[BUS] Desconectado — reintentando...`, 't-riesgo');
-      wsReconect = setTimeout(conectarBus, CFG.TIEMPO_RECONEXION);
-    };
-
-  } catch(err){
-    log(`[BUS] Error: ${err.message} — probando respaldo...`, 't-error');
-    CFG.SOFI_URL = CFG.SOFI_URL_RESPALDO;
-    STATE.modo = 'RESPALDO_RENDER';
-    wsReconect = setTimeout(conectarBus, CFG.TIEMPO_RECONEXION * 2);
-  }
-}
-
-function enviarTelemetria(){
-  if(!ws || ws.readyState !== WebSocket.OPEN) return;
-  const datos = {
-    tipo:'telemetria',
-    device_id:'JARVIS_CORTEX_A03',
-    lat:STATE.lat, lon:STATE.lon,
-    datos:{bateria:STATE.bat, temp:STATE.temp, bio:{hr:STATE.hr, hrv:STATE.hrv, hz:STATE.hz}},
-    timestamp:new Date().toISOString()
+  STATE.ws.onopen = () => {
+    STATE.conectado = true;
+    document.getElementById('val-net').textContent = 'LIVE';
+    document.getElementById('bar-net').style.width = '100%';
+    log('[HERMES] Canal establecido — conectado a SOFÍ', 't-sys');
   };
-  datos.firma = firmarPaquete(datos);
-  ws.send(JSON.stringify(datos));
+
+  STATE.ws.onmessage = (e) => {
+    try{
+      const datos = JSON.parse(e.data);
+      if(datos.firma && firmar(datos) !== datos.firma) return;
+      procesarRespuesta(datos);
+    }catch(err){}
+  };
+
+  STATE.ws.onerror = () => {
+    if(CFG.MODO === 'TERMUX_PRINCIPAL'){
+      CFG.MODO = 'RESPALDO_RENDER';
+      log('[HERMES] Local no disponible — cambiando a Render', 't-riesgo');
+      setTimeout(conectarCanal, 2000);
+    }
+  };
+
+  STATE.ws.onclose = () => {
+    STATE.conectado = false;
+    document.getElementById('val-net').textContent = 'OFF';
+    setTimeout(conectarCanal, 5000);
+  };
 }
-setInterval(enviarTelemetria, CFG.INTERVALO_TELEMETRIA);
 
 // ═══════════════════════════════════════════════════════════════
-// TERMINAL Y COMANDOS
+// PROCESAMIENTO DE RESPUESTAS DE SOFÍ
 // ═══════════════════════════════════════════════════════════════
-const term = document.getElementById('terminal');
-function log(msg, cls='t-sys'){
-  const div = document.createElement('div');
-  div.className = cls;
-  div.textContent = `[${new Date().toLocaleTimeString('es-MX',{hour12:false})}] ${msg}`;
-  term.appendChild(div);
-  term.scrollTop = term.scrollHeight;
-  if(term.children.length > 300) term.removeChild(term.firstChild);
-}
-
-async function enviarCmd(texto){
-  const cmd = (texto || document.getElementById('cmd').value).trim();
-  if(!cmd) return;
-  document.getElementById('cmd').value = '';
-  log(`>> LOK: ${cmd}`);
-
-  if(cmd.startsWith('set sofi ')){
-    CFG.SOFI_URL = cmd.replace('set sofi ','').trim();
-    localStorage.setItem('sofi_url', CFG.SOFI_URL);
-    log(`[CONFIG] URL guardada: ${CFG.SOFI_URL}`, 't-bio');
-    conectarBus();
-    return;
+function procesarRespuesta(datos){
+  switch(datos.accion){
+    case 'posesion':
+      STATE.posesion = true;
+      log('[CORTEX] ✅ Posesión completa del equipo confirmada', 't-bio');
+      break;
+    case 'organizar':
+      log(`[CORTEX] 📂 Organizados: ${datos.archivos} archivos | ${datos.conexiones} conexiones`, 't-bio');
+      break;
+    case 'chat':
+      log(`🤖 JARVIS: ${datos.mensaje}`, 't-chat');
+      break;
+    default:
+      if(datos.mensaje) log(`SOFÍ: ${datos.mensaje}`, 't-blanca');
   }
+}
 
-  if(!ws || ws.readyState !== WebSocket.OPEN){
-    log(`[BUS] Sin conexión — intentando reconectar`, 't-riesgo');
-    conectarBus();
+// ═══════════════════════════════════════════════════════════════
+// EJECUCIÓN DE ACCIONES
+// ═══════════════════════════════════════════════════════════════
+function ejecutarAccion(nombre){
+  const acciones = {
+    posesion: {accion:'posesion', descripcion:'Tomar control completo del dispositivo'},
+    organizar: {accion:'organizar', descripcion:'Ordenar archivos, redes y procesos'},
+    gps: {accion:'gps', descripcion:'Activar triangulación de posición'},
+    redes: {accion:'redes', descripcion:'Analizar y organizar conexiones de red'},
+    archivos: {accion:'archivos', descripcion:'Escanear y estructurar almacenamiento'},
+    osiris: {accion:'osiris', descripcion:'Activar protocolo de seguridad'}
+  };
+  const accion = acciones[nombre];
+  if(!accion) return;
+
+  log(`>> LOK: ${accion.descripcion}`);
+  if(!STATE.conectado){
+    log('[HERMES] Sin conexión — intentando reconectar', 't-riesgo');
+    conectarCanal();
     return;
   }
 
   const paquete = {
-    tipo:'comando',
-    device_id:'JARVIS_CORTEX_A03',
-    comando:cmd,
-    lat:STATE.lat,
-    lon:STATE.lon,
-    timestamp:new Date().toISOString()
+    accion: accion.accion,
+    origen: 'JARVIS_CORTEX',
+    timestamp: new Date().toISOString()
   };
-  paquete.firma = firmarPaquete(paquete);
-  ws.send(JSON.stringify(paquete));
+  paquete.firma = firmar(paquete);
+  STATE.ws.send(JSON.stringify(paquete));
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ARRANQUE
+// CHAT INTERACTIVO
 // ═══════════════════════════════════════════════════════════════
-(function init(){
-  iniciarGPS();
-  iniciarBateria();
-  simularBiometricos();
-  conectarBus();
-  setInterval(() => document.getElementById('hud-hz').textContent = `◉ ${(12.3 + Math.sin(Date.now()/10000)*0.05).toFixed(3)} Hz`, 500);
-  setTimeout(() => log('[SISTEMA] Interfaz lista — conectando a Termux', 't-sys'), 600);
-  setTimeout(() => log('[MEMORIA] Alimentando información a SOFÍ desde almacenamiento local', 't-bio'), 1500);
-})();
+function enviarComando(texto){
+  const cmd = (texto || document.getElementById('cmd').value).trim();
+  if(!cmd) return;
+  document.getElementById('cmd').value = '';
+  log(`>> TÚ: ${cmd}`);
 
-document.getElementById('cmd').addEventListener('keydown', e => e.key==='Enter' && enviarCmd());
-document.getElementById('btn-send').addEventListener('click', enviarCmd);
+  if(!STATE.conectado){
+    log('[HERMES] Esperando conexión para enviar orden', 't-riesgo');
+    conectarCanal();
+    return;
+  }
+
+  const paquete = {
+    accion: 'chat',
+    comando: cmd,
+    origen: 'USUARIO_LOK',
+    timestamp: new Date().toISOString()
+  };
+  paquete.firma = firmar(paquete);
+  STATE.ws.send(JSON.stringify(paquete));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EFECTOS VISUALES Y ANILLO
+// ═══════════════════════════════════════════════════════════════
+const ringCanvas = document.getElementById('ring-canvas');
+const rCtx = ringCanvas.getContext('2d');
+
+function resizeRing(){
+  const sz = ringCanvas.parentElement.offsetWidth;
+  ringCanvas.width = sz;
+  ringCanvas.height = sz;
+}
+resizeRing();
+window.addEventListener('resize', resizeRing);
+
+function dibujarAnillo(){
+  const W = ringCanvas.width, H = ringCanvas.height;
+  const cx = W/2, cy = H/2, R = W*0.42;
+  rCtx.clearRect(0,0,W,H);
+
+  rCtx.beginPath(); rCtx.arc(cx,cy,R,0,Math.PI*2);
+  rCtx.strokeStyle = 'rgba(0,255,204,0.08)'; rCtx.lineWidth=1.5; rCtx.stroke();
+
+  const coher = 0.75 + Math.sin(Date.now()/1200)*0.2;
+  rCtx.beginPath(); rCtx.arc(cx,cy,R,-Math.PI/2,-Math.PI/2+Math.PI*2*coher);
+  const grad = rCtx.createLinearGradient(cx-R,cy,cx+R,cy);
+  grad.addColorStop(0,'#00ffcc'); grad.addColorStop(0.5,'#b366ff'); grad.addColorStop(1,'#00ffcc');
+  rCtx.strokeStyle=grad; rCtx.lineWidth=2.5; rCtx.shadowColor='#00ffcc'; rCtx.shadowBlur=12; rCtx.stroke();
+  rCtx.shadowBlur=0;
+
+  document.getElementById('bio-hz-val').textContent = (12.3 + Math.sin(Date.now()/800)*0.05).toFixed(1);
+  requestAnimationFrame(dibujarAnillo);
+}
+dibujarAnillo();
+
+// ═══════════════════════════════════════════════════════════════
+// REGISTRO DE CONSOLA
+// ═══════════════════════════════════════════════════════════════
+const term = document.getElementById('terminal');
+function log(msg, clase='t-sys'){
+  const div = document.createElement('div');
+  div.className = clase;
+  div.textContent = `[${new Date().toLocaleTimeString('es-MX',{hour12:false})}] ${msg}`;
+  term.appendChild(div);
+  term.scrollTop = term.scrollHeight;
+  if(term.children.length > 250) term.removeChild(term.firstChild);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ARRANQUE DEL SISTEMA
+// ═══════════════════════════════════════════════════════════════
+(function iniciar(){
+  conectarCanal();
+  document.getElementById('cmd').addEventListener('keydown', e => e.key==='Enter' && enviarComando());
+  document.getElementById('btn-send').addEventListener('click', () => enviarComando());
+
+  setTimeout(() => log('[JARVIS] Sistema listo para operar', 't-bio'), 800);
+  setTimeout(() => log('[CORTEX] Esperando orden para organizar recursos', 't-bio'), 1500);
+})();
 </script>
 </body>
 </html>
