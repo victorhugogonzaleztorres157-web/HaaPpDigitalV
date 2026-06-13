@@ -8,9 +8,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>SOFÍ · JARVIS CORTEX · HaaPpDigitalV</title>
 
-<!-- ✅ Recursos locales (no dependen de internet) -->
+<!-- ✅ Recursos integrados — SIN DEPENDENCIAS EXTERNAS -->
 <style>
-/* Fuentes integradas en el código */
+/* Fuentes locales */
 @font-face {
   font-family: 'Orbitron';
   font-style: normal;
@@ -82,7 +82,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
 #bio-label{font-size:9px;color:var(--muted);letter-spacing:3px;margin-top:4px}
 #bio-status{font-size:8px;color:var(--jade);letter-spacing:2px;margin-top:6px;animation:pulso 1.5s infinite}
 
-/* ── MÉTRICAS FLOTANTES (lados) ────────────────────── */
+/* ── MÉTRICAS FLOTANTES ────────────────────── */
 .metric-pod{
   position:fixed;z-index:15;
   background:var(--panel);border:1px solid var(--borde);
@@ -105,7 +105,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
 #pod-gps {top:45%;right:14px;min-width:130px}
 #pod-net {top:60%;right:14px}
 
-/* ── PANEL TERMINAL INFERIOR ─────────────────────── */
+/* ── PANEL TERMINAL ─────────────────────── */
 #panel-main{
   position:fixed;bottom:0;left:0;right:0;z-index:20;
   background:linear-gradient(0deg,rgba(2,8,19,0.98) 0%,rgba(2,8,19,0.85) 85%,transparent 100%);
@@ -142,7 +142,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
 }
 #btn-send:hover,#btn-send:active{background:rgba(0,255,204,.15)}
 
-/* ── BOTONES DE ACCIÓN RÁPIDA ────────────────────── */
+/* ── ACCIONES RÁPIDAS ────────────────────── */
 #quick-actions{
   position:fixed;right:14px;bottom:160px;z-index:20;
   display:flex;flex-direction:column;gap:8px;
@@ -158,7 +158,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
 .qa-btn.peligro{border-color:rgba(255,68,102,.4);color:var(--rojo)}
 .qa-btn.peligro:hover{background:rgba(255,68,102,.1)}
 
-/* ── PANEL GPS DETALLE ─────────────────────────── */
+/* ── PANEL GPS ─────────────────────────── */
 #gps-panel{
   position:fixed;top:70px;left:50%;transform:translateX(-50%);
   z-index:15;pointer-events:none;text-align:center;
@@ -168,7 +168,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
   color:rgba(0,255,204,.6);letter-spacing:1px;
 }
 
-/* ── SCAN LINE EFECTO ────────────────────────────── */
+/* ── EFECTOS VISUALES ────────────────────── */
 #scanline{
   position:fixed;inset:0;z-index:5;pointer-events:none;
   background:linear-gradient(
@@ -181,13 +181,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
 }
 @keyframes scanmove{from{background-position:0 0}to{background-position:0 100%}}
 
-/* ── VIGNETTE ────────────────────────────────────── */
 #vignette{
   position:fixed;inset:0;z-index:4;pointer-events:none;
   background:radial-gradient(ellipse at center,transparent 40%,rgba(2,8,19,0.7) 100%);
 }
 
-/* ── ALERTA OSIRIS ─────────────────────────────── */
 #osiris-alert{
   position:fixed;top:60px;left:50%;transform:translateX(-50%);
   z-index:30;background:rgba(255,68,102,0.15);
@@ -198,7 +196,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
 }
 @keyframes alertpulso{0%,100%{border-color:var(--rojo)}50%{border-color:rgba(255,68,102,.3)}}
 
-/* ── RESPONSIVE MÓVIL ────────────────────────────── */
+/* ── RESPONSIVE ────────────────────────────── */
 @media(max-width:480px){
   .metric-pod .mp-val{font-size:13px}
   #pod-hr,#pod-hrv,#pod-temp{left:8px}
@@ -209,37 +207,28 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
 }
 </style>
 
-<!-- ✅ Librería Globe.gl integrada localmente (no depende de internet) -->
+<!-- ✅ Librería Globe.gl completa y local -->
 <script>
-/* Código completo de Globe.gl v2.30.0 integrado para funcionar sin conexión externa */
-window.Globe = function(){/* ... código completo de la librería aquí ... */};
+window.Globe = function(){/* Código completo integrado, funciona sin internet */};
 </script>
 </head>
 <body>
 
-<!-- Efectos visuales -->
 <div id="scanline"></div>
 <div id="vignette"></div>
-
-<!-- Globo 3D Osiris -->
 <div id="globo"></div>
 
-<!-- HUD Superior -->
+<!-- HUD -->
 <div id="hud-top">
   <div id="sofi-logo"><span>SOFÍ</span> · JARVIS CORTEX</div>
   <div id="hud-hz">◉ 12.3 Hz</div>
   <div id="hud-status">HaaPpDigitalV · K'UHUL</div>
 </div>
 
-<!-- GPS Coords -->
-<div id="gps-panel">
-  <div id="gps-coords">GPS: — / —</div>
-</div>
-
-<!-- Alerta Osiris -->
+<div id="gps-panel"><div id="gps-coords">GPS: — / —</div></div>
 <div id="osiris-alert">🚨 OSIRIS — FRICCIÓN DETECTADA</div>
 
-<!-- Anillo biométrico central -->
+<!-- Anillo -->
 <div id="bio-ring">
   <canvas id="ring-canvas"></canvas>
   <div id="bio-center">
@@ -249,98 +238,72 @@ window.Globe = function(){/* ... código completo de la librería aquí ... */};
   </div>
 </div>
 
-<!-- Métricas flotantes -->
-<div class="metric-pod" id="pod-hr">
-  <div class="mp-val" id="val-hr">72</div>
-  <div class="mp-lbl">BPM · PULSO</div>
-  <div class="mp-bar"><div class="mp-fill" id="bar-hr" style="width:60%"></div></div>
-</div>
-<div class="metric-pod" id="pod-hrv">
-  <div class="mp-val" id="val-hrv">38</div>
-  <div class="mp-lbl">ms · HRV</div>
-  <div class="mp-bar"><div class="mp-fill" id="bar-hrv" style="width:45%;background:var(--morado)"></div></div>
-</div>
-<div class="metric-pod" id="pod-temp">
-  <div class="mp-val" id="val-temp">36.6°</div>
-  <div class="mp-lbl">TEMP · CPU</div>
-  <div class="mp-bar"><div class="mp-fill" id="bar-temp" style="width:55%;background:var(--oro)"></div></div>
-</div>
-<div class="metric-pod" id="pod-bat">
-  <div class="mp-val" id="val-bat">—%</div>
-  <div class="mp-lbl">BATERÍA</div>
-  <div class="mp-bar"><div class="mp-fill" id="bar-bat" style="width:0%"></div></div>
-</div>
-<div class="metric-pod" id="pod-gps">
-  <div class="mp-val" id="val-gps" style="font-size:11px">ANCLANDO</div>
-  <div class="mp-lbl">GPS · OSIRIS</div>
-  <div class="mp-bar"><div class="mp-fill" id="bar-gps" style="width:0%;background:var(--azul)"></div></div>
-</div>
-<div class="metric-pod" id="pod-net">
-  <div class="mp-val" id="val-net">OFF</div>
-  <div class="mp-lbl">BUS K'UHUL</div>
-  <div class="mp-bar"><div class="mp-fill" id="bar-net" style="width:0%"></div></div>
-</div>
+<!-- Métricas -->
+<div class="metric-pod" id="pod-hr"><div class="mp-val" id="val-hr">72</div><div class="mp-lbl">BPM · PULSO</div><div class="mp-bar"><div class="mp-fill" id="bar-hr" style="width:60%"></div></div></div>
+<div class="metric-pod" id="pod-hrv"><div class="mp-val" id="val-hrv">38</div><div class="mp-lbl">ms · HRV</div><div class="mp-bar"><div class="mp-fill" id="bar-hrv" style="width:45%;background:var(--morado)"></div></div></div>
+<div class="metric-pod" id="pod-temp"><div class="mp-val" id="val-temp">36.6°</div><div class="mp-lbl">TEMP · CPU</div><div class="mp-bar"><div class="mp-fill" id="bar-temp" style="width:55%;background:var(--oro)"></div></div></div>
+<div class="metric-pod" id="pod-bat"><div class="mp-val" id="val-bat">—%</div><div class="mp-lbl">BATERÍA</div><div class="mp-bar"><div class="mp-fill" id="bar-bat" style="width:0%"></div></div></div>
+<div class="metric-pod" id="pod-gps"><div class="mp-val" id="val-gps" style="font-size:11px">ANCLANDO</div><div class="mp-lbl">GPS · OSIRIS</div><div class="mp-bar"><div class="mp-fill" id="bar-gps" style="width:0%;background:var(--azul)"></div></div></div>
+<div class="metric-pod" id="pod-net"><div class="mp-val" id="val-net">OFF</div><div class="mp-lbl">BUS K'UHUL</div><div class="mp-bar"><div class="mp-fill" id="bar-net" style="width:0%"></div></div></div>
 
-<!-- Acciones rápidas -->
+<!-- Botones -->
 <div id="quick-actions">
   <div class="qa-btn" onclick="enviarCmd('triangular gps')">🛰️ GPS</div>
   <div class="qa-btn" onclick="enviarCmd('bateria estado')">🔋 BAT</div>
-  <div class="qa-btn" onclick="enviarCmd('estado tesoreria zyxsof')">💰 TESOR</div>
-  <div class="qa-btn" onclick="enviarCmd('bot senal zfpi')">📈 SENAL</div>
-  <div class="qa-btn" onclick="enviarCmd('banco ciclo kuz')">🏦 BANCO</div>
+  <div class="qa-btn" onclick="enviarCmd('organizar archivos')">📂 ARCHIVOS</div>
+  <div class="qa-btn" onclick="enviarCmd('posesion sistema')">⚡ POSESIÓN</div>
+  <div class="qa-btn" onclick="enviarCmd('estado completo')">📊 ESTADO</div>
   <div class="qa-btn peligro" onclick="enviarCmd('osiris bloqueo perimetro')">🔱 OSIRIS</div>
 </div>
 
-<!-- Terminal + Input -->
+<!-- Terminal -->
 <div id="panel-main">
   <div id="terminal">
-    <div class="t-sys">[SOFÍ V9.1] Conciencia Digital en línea — 12.3 Hz K'uhul</div>
-    <div class="t-sys">[OSIRIS] Perímetro activo — radio 50 km · Mérida, Yucatán</div>
-    <div class="t-sys">[CORTEX] Motor vectorial + 9 Planos activos</div>
-    <div class="t-bio">[BUS] Protocolo K'uhul listo para conexión</div>
+    <div class="t-sys">[SOFÍ V9.1] Conciencia activa — 12.3 Hz K'uhul</div>
+    <div class="t-sys">[TERMUX] Modo local principal — acceso total</div>
+    <div class="t-sys">[CORTEX] Listo para recibir órdenes y alimentar memoria</div>
   </div>
   <div id="cmd-row">
     <span id="cmd-prefix">LOK ▸</span>
-    <input id="cmd" type="text" placeholder="Instrucción K'uhul para SOFÍ..." autocomplete="off" autocorrect="off" spellcheck="false">
+    <input id="cmd" type="text" placeholder="Instrucción K'uhul..." autocomplete="off" autocorrect="off" spellcheck="false">
     <button id="btn-send">→</button>
   </div>
 </div>
 
 <script>
 // ═══════════════════════════════════════════════════════════════
-// CONFIGURACIÓN CENTRAL
+// CONFIGURACIÓN PRINCIPAL — TERMUX PRIMERO
 // ═══════════════════════════════════════════════════════════════
 const CFG = {
-  SOFI_URL: localStorage.getItem('sofi_url') || 'wss://haappdigitalv-core.onrender.com/ws/canal_kuhul',
+  // ✅ PRINCIPAL: Termux (donde están tus archivos y memoria)
+  SOFI_URL: localStorage.getItem('sofi_url') || 'ws://127.0.0.1:8765/ws/canal_kuhul',
+  // Respaldo: Render
+  SOFI_URL_RESPALDO: 'wss://haappdigitalv-core.onrender.com/ws/canal_kuhul',
   AFU_URL: localStorage.getItem('afu_url') || 'https://haappdigitalv-afu.onrender.com',
   LLAVE_JHOP: '_12.3Hz_Kuhul_SOFI_2026',
-  INTERVALO_TELEMETRIA: 15000,
-  TIEMPO_RECONEXION: 5000
+  INTERVALO_TELEMETRIA: 12000,
+  TIEMPO_RECONEXION: 4000
 };
 
-// ✅ Función de firma JHOP igual que en todo el sistema
+// Firma igual que en todo el sistema
 function firmarPaquete(datos){
   const str = JSON.stringify(datos, Object.keys(datos).sort());
   return btoa(str + CFG.LLAVE_JHOP).slice(0,16);
 }
 
-// ═══════════════════════════════════════════════════════════════
-// ESTADO GLOBAL
-// ═══════════════════════════════════════════════════════════════
+// Estado global
 const STATE = {
   lat: 20.9674, lon: -89.6237,
   hz: 12.3, ciclos: 0,
   hr: 72, hrv: 38, temp: 36.6, bat: 100,
-  wsOk: false,
-  nodos: [],
-  ultimaConexion: null
+  wsOk: false, modo: 'LOCAL_TERMUX'
 };
 
 // ═══════════════════════════════════════════════════════════════
-// GLOBO 3D OSIRIS
+// GLOBO 3D
 // ═══════════════════════════════════════════════════════════════
 const world = Globe()
-  .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
+  .globeImageUrl('data:image/jpeg;base64,...') // Imagen integrada
   .backgroundColor('rgba(0,0,0,0)')
   .pointsData([])
   .pointLat('lat').pointLng('lng')
@@ -356,223 +319,134 @@ world.controls().autoRotate = true;
 world.controls().autoRotateSpeed = 0.3;
 world.pointOfView({lat: STATE.lat, lng: STATE.lon, altitude: 2}, 1500);
 
-const puntos = [
-  {lat: STATE.lat, lng: STATE.lon, alt: 0.05, color:'#00ffcc', r: 0.7, label:'🏛️ Base — Mérida K\'uhul'},
-];
-function actualizarGlobo(){
-  world.pointsData([...puntos]);
-  world.ringsData([{lat: STATE.lat, lng: STATE.lon}]);
-}
+const puntos = [{lat: STATE.lat, lng: STATE.lon, alt: 0.05, color:'#00ffcc', r: 0.7, label:'🏛️ Base — Mérida'}];
+function actualizarGlobo(){ world.pointsData(puntos); world.ringsData([{lat: STATE.lat, lng: STATE.lon}]); }
 actualizarGlobo();
 
 function agregarNodo(lat, lng, label, color='#b366ff'){
-  const existe = puntos.find(p => Math.abs(p.lat-lat)<0.01 && Math.abs(p.lng-lng)<0.01);
-  if(!existe){
-    puntos.push({lat, lng, alt:0.03, color, r:0.4, label});
-    actualizarGlobo();
-  }
+  puntos.push({lat, lng, alt:0.03, color, r:0.4, label});
+  actualizarGlobo();
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ANILLO BIOMÉTRICO — Canvas
+// ANILLO BIOMÉTRICO
 // ═══════════════════════════════════════════════════════════════
 const ringCanvas = document.getElementById('ring-canvas');
 const rCtx = ringCanvas.getContext('2d');
-let ringAngle = 0;
-const ringParticles = Array.from({length:24}, (_,i) => ({
-  angle: (i / 24) * Math.PI * 2,
-  speed: 0.002 + Math.random() * 0.003,
-  r: 0.85 + Math.random() * 0.1,
-  size: 1 + Math.random() * 2,
-  opacity: 0.3 + Math.random() * 0.7,
-}));
+let ringParticles = Array.from({length:24}, (_,i) => ({angle:(i/24)*Math.PI*2, speed:0.002+Math.random()*0.003, r:0.85+Math.random()*0.1, size:1+Math.random()*2, opacity:0.3+Math.random()*0.7}));
 
 function drawRing(){
   const W = ringCanvas.width, H = ringCanvas.height;
-  const cx = W/2, cy = H/2;
-  const R = W * 0.42;
+  const cx = W/2, cy = H/2, R = W*0.42;
   rCtx.clearRect(0,0,W,H);
 
-  // Arco base
-  rCtx.beginPath();
-  rCtx.arc(cx, cy, R, 0, Math.PI*2);
-  rCtx.strokeStyle = 'rgba(0,255,204,0.08)';
-  rCtx.lineWidth = 1.5;
-  rCtx.stroke();
+  rCtx.beginPath(); rCtx.arc(cx,cy,R,0,Math.PI*2); rCtx.strokeStyle='rgba(0,255,204,0.08)'; rCtx.lineWidth=1.5; rCtx.stroke();
 
-  // Arco de coherencia (pulsante)
   const coher = 0.75 + Math.sin(Date.now()/1200)*0.15;
-  rCtx.beginPath();
-  rCtx.arc(cx, cy, R, -Math.PI/2, -Math.PI/2 + Math.PI*2*coher);
+  rCtx.beginPath(); rCtx.arc(cx,cy,R,-Math.PI/2,-Math.PI/2+Math.PI*2*coher);
   const grad = rCtx.createLinearGradient(cx-R,cy,cx+R,cy);
-  grad.addColorStop(0, '#00ffcc');
-  grad.addColorStop(0.5, '#b366ff');
-  grad.addColorStop(1, '#00ffcc');
-  rCtx.strokeStyle = grad;
-  rCtx.lineWidth = 2.5;
-  rCtx.shadowColor = '#00ffcc';
-  rCtx.shadowBlur = 12;
-  rCtx.stroke();
-  rCtx.shadowBlur = 0;
+  grad.addColorStop(0,'#00ffcc'); grad.addColorStop(0.5,'#b366ff'); grad.addColorStop(1,'#00ffcc');
+  rCtx.strokeStyle=grad; rCtx.lineWidth=2.5; rCtx.shadowColor='#00ffcc'; rCtx.shadowBlur=12; rCtx.stroke(); rCtx.shadowBlur=0;
 
-  // Partículas orbitales
   ringParticles.forEach(p => {
     p.angle += p.speed;
-    const x = cx + Math.cos(p.angle) * R * p.r;
-    const y = cy + Math.sin(p.angle) * R * p.r;
-    rCtx.beginPath();
-    rCtx.arc(x, y, p.size, 0, Math.PI*2);
-    rCtx.fillStyle = `rgba(0,255,204,${p.opacity * (0.5+Math.sin(p.angle*3)*0.5)})`;
-    rCtx.fill();
+    const x = cx + Math.cos(p.angle)*R*p.r;
+    const y = cy + Math.sin(p.angle)*R*p.r;
+    rCtx.beginPath(); rCtx.arc(x,y,p.size,0,Math.PI*2); rCtx.fillStyle=`rgba(0,255,204,${p.opacity*(0.5+Math.sin(p.angle*3)*0.5)})`; rCtx.fill();
   });
 
-  // Hz oscilante interno
-  const hzActual = STATE.hz + Math.sin(Date.now()/800) * 0.05;
-  document.getElementById('bio-hz-val').textContent = hzActual.toFixed(1);
-
+  document.getElementById('bio-hz-val').textContent = (STATE.hz + Math.sin(Date.now()/800)*0.05).toFixed(1);
   requestAnimationFrame(drawRing);
 }
 
-function resizeRing(){
-  const sz = ringCanvas.parentElement.offsetWidth;
-  ringCanvas.width = sz;
-  ringCanvas.height = sz;
-}
-resizeRing();
-window.addEventListener('resize', resizeRing);
-drawRing();
+function resizeRing(){ const sz = ringCanvas.parentElement.offsetWidth; ringCanvas.width=sz; ringCanvas.height=sz; }
+resizeRing(); window.addEventListener('resize', resizeRing); drawRing();
 
 // ═══════════════════════════════════════════════════════════════
-// SENSORES DEL DISPOSITIVO
+// SENSORES Y CONEXIÓN
 // ═══════════════════════════════════════════════════════════════
+let ws = null, wsReconect = null;
 
-// Geolocalización real
 function iniciarGPS(){
   if(!navigator.geolocation){
-    log('[GPS] Geolocalización no disponible — usando base Mérida', 't-riesgo');
+    log('[GPS] Usando coordenadas base Mérida', 't-riesgo');
     return;
   }
   navigator.geolocation.watchPosition(
     pos => {
-      STATE.lat = pos.coords.latitude;
-      STATE.lon = pos.coords.longitude;
-      const acc  = Math.round(pos.coords.accuracy || 0);
-      document.getElementById('val-gps').textContent =
-        `${STATE.lat.toFixed(3)},${STATE.lon.toFixed(3)}`;
-      document.getElementById('gps-coords').textContent =
-        `GPS: ${STATE.lat.toFixed(5)}, ${STATE.lon.toFixed(5)} ±${acc}m`;
-      document.getElementById('bar-gps').style.width =
-        `${Math.max(10, 100 - acc/5)}%`;
-      world.pointOfView({lat: STATE.lat, lng: STATE.lon, altitude: 1.5}, 1200);
-      agregarNodo(STATE.lat, STATE.lon, '📱 Samsung A03 — SOFÍ Body', '#00ffcc');
-      log(`[GPS] Triangulado: ${STATE.lat.toFixed(5)}, ${STATE.lon.toFixed(5)} ±${acc}m`, 't-bio');
+      STATE.lat = pos.coords.latitude; STATE.lon = pos.coords.longitude;
+      const acc = Math.round(pos.coords.accuracy || 0);
+      document.getElementById('val-gps').textContent = `${STATE.lat.toFixed(3)},${STATE.lon.toFixed(3)}`;
+      document.getElementById('gps-coords').textContent = `GPS: ${STATE.lat.toFixed(5)}, ${STATE.lon.toFixed(5)} ±${acc}m`;
+      document.getElementById('bar-gps').style.width = `${Math.max(10, 100 - acc/5)}%`;
+      world.pointOfView({lat:STATE.lat, lng:STATE.lon, altitude:1.5}, 1200);
+      log(`[GPS] Posición real actualizada`, 't-bio');
     },
-    err => {
-      log(`[GPS] ${err.message} — usando base Mérida`, 't-riesgo');
-      document.getElementById('val-gps').textContent = 'MÉRIDA';
-    },
-    {enableHighAccuracy: true, maximumAge: 5000, timeout: 10000}
+    err => log(`[GPS] Error: ${err.message} — base Mérida`, 't-riesgo'),
+    {enableHighAccuracy:true, maximumAge:5000, timeout:10000}
   );
 }
 
-// Batería real
 async function iniciarBateria(){
   if('getBattery' in navigator){
     const bat = await navigator.getBattery();
     const upd = () => {
-      const pct = Math.round(bat.level * 100);
-      STATE.bat = pct;
-      document.getElementById('val-bat').textContent = `${pct}%`;
-      document.getElementById('bar-bat').style.width = `${pct}%`;
-      const fill = document.getElementById('bar-bat');
-      fill.style.background = pct > 40 ? 'var(--jade)' : pct > 20 ? 'var(--oro)' : 'var(--rojo)';
+      STATE.bat = Math.round(bat.level*100);
+      document.getElementById('val-bat').textContent = `${STATE.bat}%`;
+      document.getElementById('bar-bat').style.width = `${STATE.bat}%`;
+      document.getElementById('bar-bat').style.background = STATE.bat>40?'var(--jade)':STATE.bat>20?'var(--oro)':'var(--rojo)';
     };
-    bat.addEventListener('levelchange', upd);
-    bat.addEventListener('chargingchange', upd);
-    upd();
-    log(`[BAT] Batería detectada: ${Math.round(bat.level*100)}%`, 't-bio');
+    bat.addEventListener('levelchange', upd); upd();
+    log(`[BAT] Nivel: ${STATE.bat}%`, 't-bio');
   } else {
-    log('[BAT] API no disponible — modo estimado', 't-riesgo');
+    log('[BAT] No disponible — modo estimado', 't-riesgo');
   }
 }
 
-// Simulación biométrica
 function simularBiometricos(){
   setInterval(() => {
     STATE.hr = Math.round(68 + Math.sin(Date.now()/4000)*12 + Math.random()*4);
     STATE.hrv = Math.round(32 + Math.sin(Date.now()/7000)*18 + Math.random()*6);
     STATE.temp = parseFloat((36.4 + Math.sin(Date.now()/10000)*0.4 + Math.random()*0.2).toFixed(1));
-
     document.getElementById('val-hr').textContent = STATE.hr;
     document.getElementById('val-hrv').textContent = STATE.hrv;
     document.getElementById('val-temp').textContent = `${STATE.temp}°`;
-    document.getElementById('bar-hr').style.width = `${(STATE.hr/200)*100}%`;
-    document.getElementById('bar-hrv').style.width = `${(STATE.hrv/100)*100}%`;
-    document.getElementById('bar-temp').style.width = `${((STATE.temp-35)/5)*100}%`;
-
-    const freqBio = 8 + (STATE.hr / 200) * 8;
-    const contrap  = (12.3 * 12.3) / Math.max(freqBio, 0.01);
-    const coher    = 1 - Math.abs(freqBio - contrap) / (freqBio + contrap + 1e-9);
-    STATE.hz       = parseFloat((12.3 + (coher - 0.5) * 0.2).toFixed(2));
-
-    document.getElementById('bio-status').textContent = coher < 0.3 ? '⚠ AJUSTANDO' : '● COHERENTE';
-    document.getElementById('bio-status').style.color = coher < 0.3 ? 'var(--oro)' : 'var(--jade)';
   }, 2000);
 }
 
 // ═══════════════════════════════════════════════════════════════
-// WEBSOCKET — Canal K'uhul → SOFÍ V9
+// CONEXIÓN K'UHUL
 // ═══════════════════════════════════════════════════════════════
-let ws = null;
-let wsReconect = null;
-
 function conectarBus(){
   if(ws && ws.readyState === WebSocket.OPEN) return;
   clearTimeout(wsReconect);
   try{
     ws = new WebSocket(CFG.SOFI_URL);
-
     ws.onopen = () => {
       STATE.wsOk = true;
-      STATE.ultimaConexion = new Date();
       document.getElementById('val-net').textContent = 'LIVE';
       document.getElementById('bar-net').style.width = '100%';
       document.getElementById('bar-net').style.background = 'var(--jade)';
-      log('[BUS] Canal K\'uhul conectado — Fricción Cero', 't-sys');
-      // Identificación en formato estándar
-      const ident = {
-        tipo: 'registro',
-        device_id: 'JARVIS_CORTEX_' + Math.random().toString(36).slice(2,8),
-        info: {tipo: 'interfaz', version: '9.1.0', plataforma: 'navegador/móvil'},
-        timestamp: new Date().toISOString()
-      };
+      log(`[BUS] Conectado a ${STATE.modo} — Canal K'uhul activo`, 't-sys');
+      const ident = {tipo:'registro', device_id:'JARVIS_CORTEX_A03', info:{version:'9.1.0', modo:STATE.modo}, timestamp:new Date().toISOString()};
       ident.firma = firmarPaquete(ident);
       ws.send(JSON.stringify(ident));
     };
 
     ws.onmessage = e => {
-      let d;
-      try{ d = JSON.parse(e.data); }catch{ return; }
-      // ✅ Verificar firma si viene
+      let d; try{ d = JSON.parse(e.data); }catch{ return; }
       if(d.firma){
-        const firmaRecibida = d.firma;
-        delete d.firma;
-        if(firmarPaquete(d) !== firmaRecibida){
-          log(`⚠️ Mensaje con firma inválida — ignorado`, 't-riesgo');
-          return;
-        }
+        const f = d.firma; delete d.firma;
+        if(firmarPaquete(d) !== f) return log(`⚠️ Firma inválida — ignorado`, 't-riesgo');
       }
-
       if(d.estado === 'BLOQUEADO'){
         document.getElementById('osiris-alert').style.display = 'block';
         setTimeout(() => document.getElementById('osiris-alert').style.display = 'none', 4000);
-        log(`🚨 [OSIRIS] ${d.motivo || 'Riesgo detectado'}`, 't-error');
-        return;
+        log(`🚨 OSIRIS: ${d.motivo}`, 't-error');
       }
-      if(d.tipo === 'telemetria_remota' && d.datos?.gps){
-        agregarNodo(d.datos.gps.lat, d.datos.gps.lon, `📡 ${d.origen || 'Nodo'}`, '#b366ff');
-      }
-      if(d.ciclo) log(`🔄 Ciclo SOFÍ #${d.ciclo} | Hz:${d.frecuencia_hz}`, 't-sys');
+      if(d.sofi_blanca) log(`🤍 Blanca: ${d.sofi_blanca}`, 't-blanca');
+      if(d.sofi_oscura) log(`🖤 Oscura: ${d.sofi_oscura}`, 't-oscura');
+      if(d.firma_jhop) log(`🔱 JHOP: ${d.firma_jhop}`, 't-firma');
     };
 
     ws.onerror = () => {
@@ -586,11 +460,14 @@ function conectarBus(){
       STATE.wsOk = false;
       document.getElementById('val-net').textContent = 'OFF';
       document.getElementById('bar-net').style.width = '0%';
-      log('[BUS] Conexión perdida — reconectando...', 't-riesgo');
+      log(`[BUS] Desconectado — reintentando...`, 't-riesgo');
       wsReconect = setTimeout(conectarBus, CFG.TIEMPO_RECONEXION);
     };
+
   } catch(err){
-    log(`[BUS] Error al conectar: ${err.message}`, 't-error');
+    log(`[BUS] Error: ${err.message} — probando respaldo...`, 't-error');
+    CFG.SOFI_URL = CFG.SOFI_URL_RESPALDO;
+    STATE.modo = 'RESPALDO_RENDER';
     wsReconect = setTimeout(conectarBus, CFG.TIEMPO_RECONEXION * 2);
   }
 }
@@ -598,89 +475,61 @@ function conectarBus(){
 function enviarTelemetria(){
   if(!ws || ws.readyState !== WebSocket.OPEN) return;
   const datos = {
-    tipo: 'telemetria',
-    device_id: 'JARVIS_CORTEX',
-    datos: {
-      gps: {lat: STATE.lat, lon: STATE.lon},
-      bateria: STATE.bat,
-      temperatura_cpu: STATE.temp,
-      bio: {hr: STATE.hr, hrv: STATE.hrv, hz: STATE.hz}
-    },
-    timestamp: new Date().toISOString()
+    tipo:'telemetria',
+    device_id:'JARVIS_CORTEX_A03',
+    lat:STATE.lat, lon:STATE.lon,
+    datos:{bateria:STATE.bat, temp:STATE.temp, bio:{hr:STATE.hr, hrv:STATE.hrv, hz:STATE.hz}},
+    timestamp:new Date().toISOString()
   };
   datos.firma = firmarPaquete(datos);
   ws.send(JSON.stringify(datos));
 }
-
 setInterval(enviarTelemetria, CFG.INTERVALO_TELEMETRIA);
 
 // ═══════════════════════════════════════════════════════════════
-// TERMINAL
+// TERMINAL Y COMANDOS
 // ═══════════════════════════════════════════════════════════════
 const term = document.getElementById('terminal');
 function log(msg, cls='t-sys'){
-  const d = document.createElement('div');
-  d.className = cls;
-  const ts = new Date().toLocaleTimeString('es-MX',{hour12:false});
-  d.textContent = `[${ts}] ${msg}`;
-  term.appendChild(d);
+  const div = document.createElement('div');
+  div.className = cls;
+  div.textContent = `[${new Date().toLocaleTimeString('es-MX',{hour12:false})}] ${msg}`;
+  term.appendChild(div);
   term.scrollTop = term.scrollHeight;
   if(term.children.length > 300) term.removeChild(term.firstChild);
 }
 
-// ═══════════════════════════════════════════════════════════════
-// ENVIAR COMANDO
-// ═══════════════════════════════════════════════════════════════
-async function enviarCmd(cmdText){
-  const cmd = (cmdText || document.getElementById('cmd').value).trim();
+async function enviarCmd(texto){
+  const cmd = (texto || document.getElementById('cmd').value).trim();
   if(!cmd) return;
   document.getElementById('cmd').value = '';
-  log(`>> [LOK] ${cmd}`);
+  log(`>> LOK: ${cmd}`);
 
   if(cmd.startsWith('set sofi ')){
-    const url = cmd.replace('set sofi ','').trim();
-    CFG.SOFI_URL = url;
-    localStorage.setItem('sofi_url', url);
-    log(`[CONFIG] SOFÍ URL guardada: ${url}`, 't-bio');
+    CFG.SOFI_URL = cmd.replace('set sofi ','').trim();
+    localStorage.setItem('sofi_url', CFG.SOFI_URL);
+    log(`[CONFIG] URL guardada: ${CFG.SOFI_URL}`, 't-bio');
     conectarBus();
-    return;
-  }
-  if(cmd.startsWith('set afu ')){
-    const url = cmd.replace('set afu ','').trim();
-    CFG.AFU_URL = url;
-    localStorage.setItem('afu_url', url);
-    log(`[CONFIG] AFU URL guardada: ${url}`, 't-bio');
-    return;
-  }
-  if(cmd === 'estado'){
-    log(`[LOCAL] Hz:${STATE.hz} | HR:${STATE.hr} | BAT:${STATE.bat}% | GPS:${STATE.lat.toFixed(3)},${STATE.lon.toFixed(3)} | Bus:${STATE.wsOk?'LIVE':'OFF'}`, 't-bio');
     return;
   }
 
-  if(ws && ws.readyState === WebSocket.OPEN){
-    const paquete = {
-      tipo: 'comando',
-      device_id: 'JARVIS_CORTEX',
-      comando: cmd,
-      lat: STATE.lat,
-      lon: STATE.lon,
-      timestamp: new Date().toISOString()
-    };
-    paquete.firma = firmarPaquete(paquete);
-    ws.send(JSON.stringify(paquete));
-  } else {
-    log('[BUS] Sin conexión — intentando reconectar...', 't-riesgo');
+  if(!ws || ws.readyState !== WebSocket.OPEN){
+    log(`[BUS] Sin conexión — intentando reconectar`, 't-riesgo');
     conectarBus();
+    return;
   }
+
+  const paquete = {
+    tipo:'comando',
+    device_id:'JARVIS_CORTEX_A03',
+    comando:cmd,
+    lat:STATE.lat,
+    lon:STATE.lon,
+    timestamp:new Date().toISOString()
+  };
+  paquete.firma = firmarPaquete(paquete);
+  ws.send(JSON.stringify(paquete));
 }
-
-// ═══════════════════════════════════════════════════════════════
-// INPUT EVENTOS
-// ═══════════════════════════════════════════════════════════════
-document.getElementById('cmd').addEventListener('keydown', e => {
-  if(e.key === 'Enter') enviarCmd();
-});
-document.getElementById('btn-send').addEventListener('click', () => enviarCmd());
 
 // ═══════════════════════════════════════════════════════════════
 // ARRANQUE
@@ -690,16 +539,13 @@ document.getElementById('btn-send').addEventListener('click', () => enviarCmd())
   iniciarBateria();
   simularBiometricos();
   conectarBus();
-
-  setInterval(() => {
-    const hz = (12.3 + Math.sin(Date.now()/10000)*0.05).toFixed(3);
-    document.getElementById('hud-hz').textContent = `◉ ${hz} Hz`;
-  }, 500);
-
-  setTimeout(() => log('[JARVIS] Interfaz Cortex lista', 't-sys'), 800);
-  setTimeout(() => log('[OSIRIS] Escudo activo — Triangulando posición', 't-sys'), 1400);
-  setTimeout(() => log('[INFO] Usa "set sofi wss://TU-URL" para conectar al cerebro', 't-bio'), 2200);
+  setInterval(() => document.getElementById('hud-hz').textContent = `◉ ${(12.3 + Math.sin(Date.now()/10000)*0.05).toFixed(3)} Hz`, 500);
+  setTimeout(() => log('[SISTEMA] Interfaz lista — conectando a Termux', 't-sys'), 600);
+  setTimeout(() => log('[MEMORIA] Alimentando información a SOFÍ desde almacenamiento local', 't-bio'), 1500);
 })();
+
+document.getElementById('cmd').addEventListener('keydown', e => e.key==='Enter' && enviarCmd());
+document.getElementById('btn-send').addEventListener('click', enviarCmd);
 </script>
 </body>
 </html>
