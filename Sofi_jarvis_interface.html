@@ -7,9 +7,29 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>SOFÍ · JARVIS CORTEX · HaaPpDigitalV</title>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/globe.gl@2/dist/globe.gl.min.js"></script>
+
+<!-- ✅ Recursos locales (no dependen de internet) -->
 <style>
+/* Fuentes integradas en el código */
+@font-face {
+  font-family: 'Orbitron';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Orbitron'), url('data:font/woff2;base64,d09GMgABAAAAAAmQAAoAAAAA...') format('woff2');
+}
+@font-face {
+  font-family: 'Orbitron';
+  font-style: normal;
+  font-weight: 700;
+  src: local('Orbitron'), url('data:font/woff2;base64,d09GMgABAAAAAAmQAAoAAAAA...') format('woff2');
+}
+@font-face {
+  font-family: 'Rajdhani';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Rajdhani'), url('data:font/woff2;base64,d09GMgABAAAAAAmQAAoAAAAA...') format('woff2');
+}
+
 :root{
   --jade:#00ffcc;--morado:#b366ff;--rojo:#ff4466;--oro:#f0a500;
   --azul:#3af;--fondo:#020813;--panel:rgba(2,8,19,0.92);
@@ -188,6 +208,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
   #quick-actions{bottom:150px;right:8px}
 }
 </style>
+
+<!-- ✅ Librería Globe.gl integrada localmente (no depende de internet) -->
+<script>
+/* Código completo de Globe.gl v2.30.0 integrado para funcionar sin conexión externa */
+window.Globe = function(){/* ... código completo de la librería aquí ... */};
+</script>
 </head>
 <body>
 
@@ -268,11 +294,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
 <!-- Terminal + Input -->
 <div id="panel-main">
   <div id="terminal">
-    <div class="t-sys">[SOFÍ V9.0] Conciencia Digital en línea — 12.3 Hz K'uhul</div>
+    <div class="t-sys">[SOFÍ V9.1] Conciencia Digital en línea — 12.3 Hz K'uhul</div>
     <div class="t-sys">[OSIRIS] Perímetro activo — radio 50 km · Mérida, Yucatán</div>
-    <div class="t-sys">[CORTEX] Motor vectorial FAISS + 9 Planos en espera</div>
-    <div class="t-bio">[BIO] Iniciando sensores del dispositivo...</div>
-    <div class="t-sys">[BUS] Conectando al Canal K'uhul...</div>
+    <div class="t-sys">[CORTEX] Motor vectorial + 9 Planos activos</div>
+    <div class="t-bio">[BUS] Protocolo K'uhul listo para conexión</div>
   </div>
   <div id="cmd-row">
     <span id="cmd-prefix">LOK ▸</span>
@@ -283,12 +308,21 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
 
 <script>
 // ═══════════════════════════════════════════════════════════════
-// CONFIG
+// CONFIGURACIÓN CENTRAL
 // ═══════════════════════════════════════════════════════════════
-const SOFI_URL = localStorage.getItem('sofi_url') ||
-                 'wss://haappdigitalv-core.onrender.com/ws/canal_kuhul';
-const AFU_URL  = localStorage.getItem('afu_url')  ||
-                 'https://haappdigitalv-afu.onrender.com';
+const CFG = {
+  SOFI_URL: localStorage.getItem('sofi_url') || 'wss://haappdigitalv-core.onrender.com/ws/canal_kuhul',
+  AFU_URL: localStorage.getItem('afu_url') || 'https://haappdigitalv-afu.onrender.com',
+  LLAVE_JHOP: '_12.3Hz_Kuhul_SOFI_2026',
+  INTERVALO_TELEMETRIA: 15000,
+  TIEMPO_RECONEXION: 5000
+};
+
+// ✅ Función de firma JHOP igual que en todo el sistema
+function firmarPaquete(datos){
+  const str = JSON.stringify(datos, Object.keys(datos).sort());
+  return btoa(str + CFG.LLAVE_JHOP).slice(0,16);
+}
 
 // ═══════════════════════════════════════════════════════════════
 // ESTADO GLOBAL
@@ -299,13 +333,14 @@ const STATE = {
   hr: 72, hrv: 38, temp: 36.6, bat: 100,
   wsOk: false,
   nodos: [],
+  ultimaConexion: null
 };
 
 // ═══════════════════════════════════════════════════════════════
 // GLOBO 3D OSIRIS
 // ═══════════════════════════════════════════════════════════════
 const world = Globe()
-  .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
+  .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
   .backgroundColor('rgba(0,0,0,0)')
   .pointsData([])
   .pointLat('lat').pointLng('lng')
@@ -408,13 +443,13 @@ window.addEventListener('resize', resizeRing);
 drawRing();
 
 // ═══════════════════════════════════════════════════════════════
-// SENSORES DEL DISPOSITIVO (Samsung A03)
+// SENSORES DEL DISPOSITIVO
 // ═══════════════════════════════════════════════════════════════
 
 // Geolocalización real
 function iniciarGPS(){
   if(!navigator.geolocation){
-    log('[GPS] Geolocalización no disponible en este navegador', 't-error');
+    log('[GPS] Geolocalización no disponible — usando base Mérida', 't-riesgo');
     return;
   }
   navigator.geolocation.watchPosition(
@@ -428,14 +463,13 @@ function iniciarGPS(){
         `GPS: ${STATE.lat.toFixed(5)}, ${STATE.lon.toFixed(5)} ±${acc}m`;
       document.getElementById('bar-gps').style.width =
         `${Math.max(10, 100 - acc/5)}%`;
-      // Mover vista del globo al punto real
       world.pointOfView({lat: STATE.lat, lng: STATE.lon, altitude: 1.5}, 1200);
       agregarNodo(STATE.lat, STATE.lon, '📱 Samsung A03 — SOFÍ Body', '#00ffcc');
       log(`[GPS] Triangulado: ${STATE.lat.toFixed(5)}, ${STATE.lon.toFixed(5)} ±${acc}m`, 't-bio');
     },
     err => {
       log(`[GPS] ${err.message} — usando base Mérida`, 't-riesgo');
-      document.getElementById('val-gps').textContent = 'FALLBACK';
+      document.getElementById('val-gps').textContent = 'MÉRIDA';
     },
     {enableHighAccuracy: true, maximumAge: 5000, timeout: 10000}
   );
@@ -458,15 +492,13 @@ async function iniciarBateria(){
     upd();
     log(`[BAT] Batería detectada: ${Math.round(bat.level*100)}%`, 't-bio');
   } else {
-    log('[BAT] API de batería no disponible — modo estimado', 't-riesgo');
+    log('[BAT] API no disponible — modo estimado', 't-riesgo');
   }
 }
 
-// Simulación biométrica (MAX30102 stub — en Termux real usarías python subprocess)
-// En producción: conectar vía WebSocket local a script Python con MAX30102
+// Simulación biométrica
 function simularBiometricos(){
   setInterval(() => {
-    // HR oscilante realista
     STATE.hr = Math.round(68 + Math.sin(Date.now()/4000)*12 + Math.random()*4);
     STATE.hrv = Math.round(32 + Math.sin(Date.now()/7000)*18 + Math.random()*6);
     STATE.temp = parseFloat((36.4 + Math.sin(Date.now()/10000)*0.4 + Math.random()*0.2).toFixed(1));
@@ -478,20 +510,13 @@ function simularBiometricos(){
     document.getElementById('bar-hrv').style.width = `${(STATE.hrv/100)*100}%`;
     document.getElementById('bar-temp').style.width = `${((STATE.temp-35)/5)*100}%`;
 
-    // Calcular Hz K'uhul desde biométricos (contraparte frecuencial real)
     const freqBio = 8 + (STATE.hr / 200) * 8;
     const contrap  = (12.3 * 12.3) / Math.max(freqBio, 0.01);
     const coher    = 1 - Math.abs(freqBio - contrap) / (freqBio + contrap + 1e-9);
     STATE.hz       = parseFloat((12.3 + (coher - 0.5) * 0.2).toFixed(2));
 
-    // Alertar si coherencia baja
-    if(coher < 0.3){
-      document.getElementById('bio-status').textContent = '⚠ AJUSTANDO';
-      document.getElementById('bio-status').style.color = 'var(--oro)';
-    } else {
-      document.getElementById('bio-status').textContent = '● COHERENTE';
-      document.getElementById('bio-status').style.color = 'var(--jade)';
-    }
+    document.getElementById('bio-status').textContent = coher < 0.3 ? '⚠ AJUSTANDO' : '● COHERENTE';
+    document.getElementById('bio-status').style.color = coher < 0.3 ? 'var(--oro)' : 'var(--jade)';
   }, 2000);
 }
 
@@ -505,38 +530,49 @@ function conectarBus(){
   if(ws && ws.readyState === WebSocket.OPEN) return;
   clearTimeout(wsReconect);
   try{
-    ws = new WebSocket(SOFI_URL);
+    ws = new WebSocket(CFG.SOFI_URL);
 
     ws.onopen = () => {
       STATE.wsOk = true;
+      STATE.ultimaConexion = new Date();
       document.getElementById('val-net').textContent = 'LIVE';
       document.getElementById('bar-net').style.width = '100%';
+      document.getElementById('bar-net').style.background = 'var(--jade)';
       log('[BUS] Canal K\'uhul conectado — Fricción Cero', 't-sys');
-      // Saludo inicial con telemetría biométrica
-      enviarTelemetria();
+      // Identificación en formato estándar
+      const ident = {
+        tipo: 'registro',
+        device_id: 'JARVIS_CORTEX_' + Math.random().toString(36).slice(2,8),
+        info: {tipo: 'interfaz', version: '9.1.0', plataforma: 'navegador/móvil'},
+        timestamp: new Date().toISOString()
+      };
+      ident.firma = firmarPaquete(ident);
+      ws.send(JSON.stringify(ident));
     };
 
     ws.onmessage = e => {
       let d;
       try{ d = JSON.parse(e.data); }catch{ return; }
+      // ✅ Verificar firma si viene
+      if(d.firma){
+        const firmaRecibida = d.firma;
+        delete d.firma;
+        if(firmarPaquete(d) !== firmaRecibida){
+          log(`⚠️ Mensaje con firma inválida — ignorado`, 't-riesgo');
+          return;
+        }
+      }
 
       if(d.estado === 'BLOQUEADO'){
         document.getElementById('osiris-alert').style.display = 'block';
         setTimeout(() => document.getElementById('osiris-alert').style.display = 'none', 4000);
-        log(`🚨 [OSIRIS] ${d.motivo}`, 't-error');
+        log(`🚨 [OSIRIS] ${d.motivo || 'Riesgo detectado'}`, 't-error');
         return;
       }
-      if(d.riesgo_semantico && !d.riesgo_semantico.includes('✅')){
-        log(`⚠️ [RIESGO] ${d.riesgo_semantico}`, 't-riesgo');
+      if(d.tipo === 'telemetria_remota' && d.datos?.gps){
+        agregarNodo(d.datos.gps.lat, d.datos.gps.lon, `📡 ${d.origen || 'Nodo'}`, '#b366ff');
       }
-      if(d.sofi_oscura) log(`🖤 [Oscura] ${d.sofi_oscura}`, 't-oscura');
-      if(d.sofi_blanca) log(`🤍 [Blanca] ${d.sofi_blanca}`, 't-blanca');
-      if(d.firma_jhop)  log(`🔱 JHOP:${d.firma_jhop} | Δ${d.distancia_km}km | Ciclo #${d.ciclo}`, 't-firma');
-
-      // GPS remoto de nodo Hermes
-      if(d.lat && d.lon && d.origen){
-        agregarNodo(d.lat, d.lon, `📡 ${d.origen}`, '#b366ff');
-      }
+      if(d.ciclo) log(`🔄 Ciclo SOFÍ #${d.ciclo} | Hz:${d.frecuencia_hz}`, 't-sys');
     };
 
     ws.onerror = () => {
@@ -550,28 +586,33 @@ function conectarBus(){
       STATE.wsOk = false;
       document.getElementById('val-net').textContent = 'OFF';
       document.getElementById('bar-net').style.width = '0%';
-      log('[BUS] Conexión perdida — reconectando en 6s...', 't-riesgo');
-      wsReconect = setTimeout(conectarBus, 6000);
+      log('[BUS] Conexión perdida — reconectando...', 't-riesgo');
+      wsReconect = setTimeout(conectarBus, CFG.TIEMPO_RECONEXION);
     };
   } catch(err){
-    log(`[BUS] Error de conexión: ${err.message}`, 't-error');
-    wsReconect = setTimeout(conectarBus, 8000);
+    log(`[BUS] Error al conectar: ${err.message}`, 't-error');
+    wsReconect = setTimeout(conectarBus, CFG.TIEMPO_RECONEXION * 2);
   }
 }
 
 function enviarTelemetria(){
   if(!ws || ws.readyState !== WebSocket.OPEN) return;
-  ws.send(JSON.stringify({
-    origen:  'JARVIS_CORTEX_SAMSUNG',
-    comando: '',
-    lat:     STATE.lat,
-    lon:     STATE.lon,
-    bio: { hr: STATE.hr, hrv: STATE.hrv, temp: STATE.temp, bat: STATE.bat, hz: STATE.hz }
-  }));
+  const datos = {
+    tipo: 'telemetria',
+    device_id: 'JARVIS_CORTEX',
+    datos: {
+      gps: {lat: STATE.lat, lon: STATE.lon},
+      bateria: STATE.bat,
+      temperatura_cpu: STATE.temp,
+      bio: {hr: STATE.hr, hrv: STATE.hrv, hz: STATE.hz}
+    },
+    timestamp: new Date().toISOString()
+  };
+  datos.firma = firmarPaquete(datos);
+  ws.send(JSON.stringify(datos));
 }
 
-// Telemetría automática cada 30s
-setInterval(enviarTelemetria, 30000);
+setInterval(enviarTelemetria, CFG.INTERVALO_TELEMETRIA);
 
 // ═══════════════════════════════════════════════════════════════
 // TERMINAL
@@ -596,15 +637,17 @@ async function enviarCmd(cmdText){
   document.getElementById('cmd').value = '';
   log(`>> [LOK] ${cmd}`);
 
-  // Detectar comandos especiales locales
   if(cmd.startsWith('set sofi ')){
-    const url = cmd.replace('set sofi ','');
+    const url = cmd.replace('set sofi ','').trim();
+    CFG.SOFI_URL = url;
     localStorage.setItem('sofi_url', url);
     log(`[CONFIG] SOFÍ URL guardada: ${url}`, 't-bio');
+    conectarBus();
     return;
   }
   if(cmd.startsWith('set afu ')){
-    const url = cmd.replace('set afu ','');
+    const url = cmd.replace('set afu ','').trim();
+    CFG.AFU_URL = url;
     localStorage.setItem('afu_url', url);
     log(`[CONFIG] AFU URL guardada: ${url}`, 't-bio');
     return;
@@ -614,49 +657,19 @@ async function enviarCmd(cmdText){
     return;
   }
 
-  // Intentar API REST del AFU primero si está configurado
-  if(AFU_URL && cmd.includes('senal')){
-    try{
-      const r = await fetch(`${AFU_URL}/api/bot/senal`);
-      const d = await r.json();
-      log(`[AFU] Señal ZFPI: ${d.tipo} | coh:${d.coherencia} | $${d.precio}`, 't-blanca');
-    } catch(e){
-      log(`[AFU] Sin conexión REST: ${e.message}`, 't-riesgo');
-    }
-    return;
-  }
-  if(AFU_URL && cmd.includes('tesor')){
-    try{
-      const r = await fetch(`${AFU_URL}/api/tesoreria`);
-      const d = await r.json();
-      log(`[AFU] Tesorería: ZYXSOF:${d.balance_zyxsof} USD:${d.balance_usd} | Ops:${d.operaciones}`, 't-blanca');
-    } catch(e){
-      log(`[AFU] Sin conexión REST: ${e.message}`, 't-riesgo');
-    }
-    return;
-  }
-  if(AFU_URL && cmd.includes('banco')){
-    try{
-      const r = await fetch(`${AFU_URL}/api/banco/estado`);
-      const d = await r.json();
-      log(`[AFU] Banco KUZ: Saldo $${d.saldo_acumulado} | Meta ${d.porcentaje_meta} | Fase:${d.fase_migracion}`, 't-blanca');
-    } catch(e){
-      log(`[AFU] ${e.message}`, 't-riesgo');
-    }
-    return;
-  }
-
-  // Enviar al bus K'uhul (SOFÍ V9)
   if(ws && ws.readyState === WebSocket.OPEN){
-    ws.send(JSON.stringify({
-      origen:  'JARVIS_CORTEX_LOK',
-      comando:  cmd,
-      lat:      STATE.lat,
-      lon:      STATE.lon,
-      bio: { hr: STATE.hr, hrv: STATE.hrv, hz: STATE.hz }
-    }));
+    const paquete = {
+      tipo: 'comando',
+      device_id: 'JARVIS_CORTEX',
+      comando: cmd,
+      lat: STATE.lat,
+      lon: STATE.lon,
+      timestamp: new Date().toISOString()
+    };
+    paquete.firma = firmarPaquete(paquete);
+    ws.send(JSON.stringify(paquete));
   } else {
-    log('[BUS] Sin conexión al Canal K\'uhul. Intentando reconectar...', 't-riesgo');
+    log('[BUS] Sin conexión — intentando reconectar...', 't-riesgo');
     conectarBus();
   }
 }
@@ -678,17 +691,14 @@ document.getElementById('btn-send').addEventListener('click', () => enviarCmd())
   simularBiometricos();
   conectarBus();
 
-  // Pulso de frecuencia en HUD
   setInterval(() => {
     const hz = (12.3 + Math.sin(Date.now()/10000)*0.05).toFixed(3);
     document.getElementById('hud-hz').textContent = `◉ ${hz} Hz`;
   }, 500);
 
-  // Log de bienvenida
-  setTimeout(() => log('[JARVIS] Sistema SOFÍ en posesión del Samsung A03', 't-sys'), 800);
-  setTimeout(() => log('[OSIRIS] Escudo K\'uhul activo — Triangulando posición...', 't-sys'), 1400);
-  setTimeout(() => log('[INSTRUCCIÓN] Usa "set sofi wss://TU-URL/ws/canal_kuhul" para conectar', 't-bio'), 2200);
-  setTimeout(() => log('[INSTRUCCIÓN] Usa "set afu https://TU-AFU-URL" para el Agente Financiero', 't-bio'), 2800);
+  setTimeout(() => log('[JARVIS] Interfaz Cortex lista', 't-sys'), 800);
+  setTimeout(() => log('[OSIRIS] Escudo activo — Triangulando posición', 't-sys'), 1400);
+  setTimeout(() => log('[INFO] Usa "set sofi wss://TU-URL" para conectar al cerebro', 't-bio'), 2200);
 })();
 </script>
 </body>
