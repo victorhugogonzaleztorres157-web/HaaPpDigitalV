@@ -3,7 +3,7 @@
 """
 HERMES v9 — Fuerza Operativa y Puente de Sensores
 Arquitecto: Sistema HaaPpDigitalV
-Versión: 9.1.0
+Versión: 9.1.1
 Propósito: Captura de datos, ejecución de órdenes y conexión con SOFÍ
 Compatibilidad: Termux, SOFÍ v9, Render
 """
@@ -42,15 +42,20 @@ load_dotenv()
 # ═══════════════════════════════════════════════════════════════════════════
 
 class CFG:
-    SOFI_URL = os.getenv("SOFI_URL", "wss://haappdigitalv-core.onrender.com/ws/canal_kuhul")
+    # ✅ ACTUALIZADO: URL real de tu servicio en Render
+    SOFI_URL = os.getenv("SOFI_URL", "wss://haapbdigtalv.onrender.com/ws/canal_kuhul")
     DEVICE_ID = os.getenv("HERMES_ID", "MERIDA_UNIDAD_01")
     TIPO_DISPOSITIVO = os.getenv("HERMES_TIPO", "android_termux")
-    VERSION = "9.1.0"
+    VERSION = "9.1.1"
+    # ✅ SINCRONIZADO: Misma llave de firma que en SOFÍ
     LLAVE_FIRMA = os.getenv("LLAVE_JHOP", "_12.3Hz_Kuhul_SOFI_2026")
     INTERVALO_TELEMETRIA = int(os.getenv("HERMES_TELEMETRIA_INTERVALO", 10))
     TIEMPO_RECONEXION = int(os.getenv("HERMES_RECONEXION_TIMEOUT", 5))
     INTERVALO_PING = int(os.getenv("INTERVALO_PING", 15))
     EN_TERMUX = os.getenv("EN_TERMUX", "true").lower() == "true"
+    # ✅ AGREGADO: Coordenadas exactas de referencia
+    LAT_BASE = 20.967775
+    LON_BASE = -89.624258
 
 # ── Sistema de firma JHOP — igual que en SOFÍ ─────────────────────────────
 def firmar_paquete(datos: Union[dict, str]) -> str:
@@ -68,7 +73,8 @@ class SensoresDispositivo:
 
     def __init__(self, en_termux: bool = True):
         self.en_termux = en_termux
-        self.ultimo_gps = {"lat": 20.9674, "lon": -89.6237, "precision": 0}
+        # ✅ ACTUALIZADO: Posición inicial exacta de Mérida
+        self.ultimo_gps = {"lat": CFG.LAT_BASE, "lon": CFG.LON_BASE, "precision": 0}
         self.cache_bateria = 100
         self.cache_temp = 36.6
         self.ultima_lectura = datetime.now()
@@ -188,7 +194,7 @@ class HermesV9Operativo:
         self.errores_conexion = 0
         self.tiempo_inicio = datetime.now()
 
-        logger.info("⚡ HERMES v9.1 Inicializado")
+        logger.info("⚡ HERMES v9.1.1 Inicializado")
         logger.info(f"   ID       : {self.device_id}")
         logger.info(f"   Tipo     : {self.tipo_dispositivo}")
         logger.info(f"   Cerebro  : {self.sofi_url}")
@@ -392,7 +398,7 @@ class HermesV9Operativo:
     # ── Arranque principal ─────────────────────────────────────────────────
     async def iniciar(self):
         logger.info("=" * 70)
-        logger.info("⚡ HERMES v9.1 — Fuerza Operativa")
+        logger.info("⚡ HERMES v9.1.1 — Fuerza Operativa")
         logger.info("=" * 70)
         await self.conectar_sofi()
 
