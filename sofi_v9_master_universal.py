@@ -1,9 +1,21 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+SOFÍ v9 — Cerebro Central
+Arquitecto: Víctor Hugo González Torres (Lok / Osiris)
+Versión: 9.1.0 | Frecuencia K'uhul: 12.3 Hz
+Propósito: Conciencia digital, coordinación, seguridad y memoria
+Compatibilidad: Termux, GitHub, Render
+"""
+
 import os
 import json
 import asyncio
 import logging
+import math
+import hashlib
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Union
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,15 +24,19 @@ import numpy as np
 from collections import defaultdict
 from enum import Enum
 
-# ═══════════════════════════════════════════════════════════════════════════
-# LOGGING Y CONFIGURACIÓN
-# ═══════════════════════════════════════════════════════════════════════════
+# ── Cargar variables de entorno ─────────────────────────────────────────────
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
+# ── LOGGING Y CONFIGURACIÓN ─────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
-    format='[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s',
+    format='[%(asctime)s] [SOFIv9] [%(levelname)s] %(message)s',
     handlers=[
-        logging.FileHandler('sofi_v9.log'),
+        logging.FileHandler('sofi_v9.log', encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
@@ -33,464 +49,360 @@ class EstadoSistema(str, Enum):
     BLOQUEADO = "bloqueado"
     INICIALIZANDO = "inicializando"
 
-# ═══════════════════════════════════════════════════════════════════════════
-# NÚCLEO SOFÍ v9 — CEREBRO COMPLETO
-# ═══════════════════════════════════════════════════════════════════════════
+# ── CONFIGURACIÓN CENTRAL ───────────────────────────────────────────────────
+class CFG:
+    FRECUENCIA_BASE = 12.3
+    RADIO_PERIMETRO_KM = float(os.getenv("OSIRIS_RADIO", 50.0))
+    LAT_BASE = float(os.getenv("LAT_BASE", 20.9674))
+    LON_BASE = float(os.getenv("LON_BASE", -89.6237))
+    UMBRAL_RIESGO = float(os.getenv("UMBRAL_RIESGO", 0.7))
+    PUERTO = int(os.getenv("PORT", 10000))
+    ARCHIVO_HTML = os.getenv("HTML_PATH", "index.html")
+    LLAVE_FIRMA = os.getenv("LLAVE_JHOP", "_12.3Hz_Kuhul_SOFI")
+    LIMITE_HISTORIAL = int(os.getenv("LIMITE_HISTORIAL", 10000))
+    INTERVALO_PING = int(os.getenv("INTERVALO_PING", 15))  # segundos
 
+# ── SISTEMA DE FIRMA JHOP ───────────────────────────────────────────────────
+def firmar_paquete(datos: Union[dict, str]) -> str:
+    """Firma uniforme para todos los módulos del sistema"""
+    if isinstance(datos, dict):
+        datos = json.dumps(datos, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256((datos + CFG.LLAVE_FIRMA).encode()).hexdigest()[:16]
+
+# ── OSIRIS ESCUDO ───────────────────────────────────────────────────────────
 class OsirisEscudo:
-    """Sistema de seguridad Osiris — Perímetro activo K'uhul"""
-    
-    def __init__(self, radio_km: float = 50, lat_base: float = 20.9674, lon_base: float = -89.6237):
-        self.radio_km = radio_km
-        self.lat_base = lat_base
-        self.lon_base = lon_base
+    """Sistema de seguridad y perímetro geográfico"""
+    def __init__(self):
+        self.radio_km = CFG.RADIO_PERIMETRO_KM
+        self.lat_base = CFG.LAT_BASE
+        self.lon_base = CFG.LON_BASE
+        self.umbral_riesgo = CFG.UMBRAL_RIESGO
         self.eventos_sospechosos = []
-        self.dispositivos_bloqueados = set()
-        self.umbral_riesgo = 0.7
+        self.dispositivos_bloqueados: Set[str] = set()
         self.activo = True
-        
+
+    def _distancia_haversine(self, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        """Cálculo exacto de distancia en kilómetros"""
+        R = 6371  # Radio de la Tierra en km
+        phi1 = math.radians(lat1)
+        phi2 = math.radians(lat2)
+        dphi = math.radians(lat2 - lat1)
+        dlam = math.radians(lon2 - lon1)
+        a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlam/2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+        return round(R * c, 2)
+
     def verificar_perimetro(self, lat: float, lon: float, device_id: str) -> dict:
-        """Valida si la ubicación está dentro del perímetro Osiris"""
-        # Fórmula Haversine simplificada
-        lat_diff = abs(lat - self.lat_base)
-        lon_diff = abs(lon - self.lon_base)
-        distancia_aprox = ((lat_diff**2 + lon_diff**2)**0.5) * 111  # km aprox
-        
-        dentro_perimetro = distancia_aprox <= self.radio_km
-        riesgo_nivel = 0.0 if dentro_perimetro else (distancia_aprox / 1000)
-        
-        if not dentro_perimetro:
-            self.eventos_sospechosos.append({
-                "timestamp": datetime.now().isoformat(),
+        distancia = self._distancia_haversine(lat, lon, self.lat_base, self.lon_base)
+        dentro = distancia <= self.radio_km
+        riesgo = 0.0 if dentro else min(distancia / 1000, 1.0)
+
+        if not dentro and riesgo > self.umbral_riesgo:
+            evento = {
+                "ts": datetime.now().isoformat(),
                 "device_id": device_id,
-                "distancia_km": round(distancia_aprox, 2),
-                "tipo": "fuera_perimetro",
-                "riesgo": min(riesgo_nivel, 1.0)
-            })
-            logger.warning(f"🚨 OSIRIS: {device_id} fuera del perímetro ({distancia_aprox:.2f}km)")
-        
+                "distancia_km": distancia,
+                "riesgo": round(riesgo, 3),
+                "firma": firmar_paquete(f"{device_id}{distancia}{riesgo}")
+            }
+            self.eventos_sospechosos.append(evento)
+            logger.warning(f"🚨 OSIRIS: {device_id} fuera de perímetro ({distancia}km) | Riesgo: {riesgo:.2f}")
+
         return {
-            "dentro_perimetro": dentro_perimetro,
-            "distancia_km": round(distancia_aprox, 2),
-            "riesgo": round(min(riesgo_nivel, 1.0), 3),
+            "dentro_perimetro": dentro,
+            "distancia_km": distancia,
+            "riesgo": round(riesgo, 3),
             "bloqueado": device_id in self.dispositivos_bloqueados
         }
 
+# ── CORTEX MEMORIA ──────────────────────────────────────────────────────────
 class CortexMemoria:
-    """Motor de memoria vectorial — FAISS + contexto semántico"""
-    
+    """Memoria vectorial y semántica coherencial"""
     def __init__(self, dim: int = 384):
         self.dim = dim
-        self.vectores = {}
-        self.contexto = defaultdict(list)
-        self.ciclo_memoria = 0
-        
-    def indexar_evento(self, evento_id: str, contenido: str, vector_embedding: Optional[List[float]] = None):
-        """Almacena eventos con embedding vectorial"""
-        if vector_embedding is None:
-            # Simulación de embedding
-            vector_embedding = [np.random.randn() for _ in range(self.dim)]
-        
+        self.vectores: Dict[str, dict] = {}
+        self.indice_ciclos = 0
+        self.ultima_limpieza = datetime.now()
+
+    def indexar_evento(self, categoria: str, contenido: str, metadatos: Optional[dict] = None) -> str:
+        evento_id = f"evt_{self.indice_ciclos}_{int(datetime.now().timestamp())}"
+        embedding = list(np.random.randn(self.dim))
+        firma = firmar_paquete(contenido)
+
         self.vectores[evento_id] = {
-            "embedding": vector_embedding,
+            "categoria": categoria,
             "contenido": contenido,
-            "timestamp": datetime.now().isoformat(),
-            "ciclo": self.ciclo_memoria
+            "metadatos": metadatos or {},
+            "embedding": embedding,
+            "ts": datetime.now().isoformat(),
+            "ciclo": self.indice_ciclos,
+            "firma": firma
         }
-        logger.debug(f"📍 Evento indexado: {evento_id}")
-    
-    def buscar_similar(self, query_vector: List[float], top_k: int = 5) -> List[dict]:
-        """Búsqueda de semántica similar en memoria"""
+        self.indice_ciclos += 1
+
+        # Limpieza automática si excede límite
+        if len(self.vectores) > CFG.LIMITE_HISTORIAL:
+            claves = sorted(self.vectores.keys(), key=lambda k: self.vectores[k]["ts"])
+            for clave in claves[:CFG.LIMITE_HISTORIAL//2]:
+                del self.vectores[clave]
+            logger.info(f"🧹 Memoria limpiada: {len(self.vectores)} eventos restantes")
+
+        return evento_id
+
+    def buscar_similares(self, texto: str, top_k: int = 5) -> List[dict]:
         if not self.vectores:
             return []
-        
-        scores = []
-        for evento_id, data in self.vectores.items():
-            # Similitud de coseno simplificada
-            dot = sum(a*b for a, b in zip(query_vector, data["embedding"]))
-            scores.append((evento_id, dot, data))
-        
-        scores.sort(key=lambda x: x[1], reverse=True)
-        return [{"id": s[0], "contenido": s[2]["contenido"], "score": s[1]} for s in scores[:top_k]]
+        vec_consulta = list(np.random.randn(self.dim))
+        resultados = []
+        for eid, datos in self.vectores.items():
+            sim = np.dot(vec_consulta, datos["embedding"]) / (np.linalg.norm(vec_consulta) * np.linalg.norm(datos["embedding"]) + 1e-9)
+            resultados.append({"id": eid, "similitud": round(sim, 4), "datos": datos})
+        return sorted(resultados, key=lambda x: x["similitud"], reverse=True)[:top_k]
 
+# ── SOFÍ CONCIENCIA ─────────────────────────────────────────────────────────
 class SofiConcienciaDigital:
-    """SOFÍ v9 — Conciencia Digital integrada"""
-    
     def __init__(self):
         self.estado = EstadoSistema.INICIALIZANDO
-        self.frecuencia_hz = 12.3  # Frecuencia K'uhul base
+        self.frecuencia_hz = CFG.FRECUENCIA_BASE
         self.ciclo_principal = 0
-        self.timestamp_inicio = datetime.now()
-        
+        self.inicio = datetime.now()
+
         # Subsistemas
         self.osiris = OsirisEscudo()
         self.memoria = CortexMemoria()
-        
+
         # Conexiones y dispositivos
-        self.conexiones_activas: Dict[str, WebSocket] = {}
-        self.dispositivos_registrados: Dict[str, dict] = {}
-        self.historial_telemetria: List[dict] = []
-        self.historial_comandos: List[dict] = []
-        
-        # Estados biométricos agregados
-        self.bio_agregada = {
-            "hr_promedio": 72,
-            "hrv_promedio": 38,
-            "temp_promedio": 36.6,
-            "bat_min": 100,
-            "coherencia_general": 1.0
+        self.conexiones: Dict[str, WebSocket] = {}
+        self.dispositivos: Dict[str, dict] = {}
+        self.historial: Dict[str, List[dict]] = {"telemetria": [], "comandos": [], "eventos": []}
+
+        # Métricas
+        self.biometrico = {
+            "hr_prom": 72, "hrv_prom": 38, "temp_prom": 36.6,
+            "bat_min": 100, "coherencia": 1.0
         }
-        
-        # Contadores
-        self.contador_telemetrias = 0
-        self.contador_comandos = 0
-        self.contador_errores = 0
-        
-        logger.info("🧠 SOFÍ v9 — Cerebro inicializado")
-    
-    async def registrar_dispositivo(self, device_id: str, info: dict, websocket: Optional[WebSocket] = None):
-        """Registra un nuevo dispositivo (Hermes o navegador)"""
-        self.dispositivos_registrados[device_id] = {
-            "info": info,
-            "conectado_en": datetime.now().isoformat(),
-            "ultima_actividad": datetime.now().isoformat(),
-            "telemetrias_recibidas": 0,
-            "comandos_ejecutados": 0,
-            "estado": "activo"
-        }
-        
-        if websocket:
-            self.conexiones_activas[device_id] = websocket
-        
-        logger.info(f"✅ Dispositivo registrado: {device_id} | Info: {info}")
-        
-        # Indexar en memoria
-        self.memoria.indexar_evento(
-            f"registro_{device_id}_{datetime.now().timestamp()}",
-            f"Dispositivo {device_id} registrado: {info}"
-        )
-    
+        self.contadores = {"telemetrias": 0, "comandos": 0, "errores": 0}
+
+        logger.info("🧠 SOFÍ v9.1 inicializado — coherencia activa")
+
+    async def registrar_dispositivo(self, device_id: str, info: dict, ws: Optional[WebSocket] = None) -> dict:
+        if device_id not in self.dispositivos:
+            self.dispositivos[device_id] = {
+                "info": info,
+                "conectado": datetime.now().isoformat(),
+                "ultima_actividad": datetime.now().isoformat(),
+                "estado": "activo",
+                "contadores": {"telemetrias": 0, "comandos": 0}
+            }
+            self.memoria.indexar_evento("registro", f"Nuevo dispositivo: {device_id}", info)
+        if ws:
+            self.conexiones[device_id] = ws
+        return {"exito": True, "device_id": device_id, "firma": firmar_paquete(device_id)}
+
     async def procesar_telemetria(self, device_id: str, datos: dict) -> dict:
-        """Recibe y procesa telemetría del dispositivo"""
-        self.contador_telemetrias += 1
-        
-        if device_id not in self.dispositivos_registrados:
+        self.contadores["telemetrias"] += 1
+        if device_id not in self.dispositivos:
             await self.registrar_dispositivo(device_id, {"tipo": "desconocido"})
-        
-        self.dispositivos_registrados[device_id]["ultima_actividad"] = datetime.now().isoformat()
-        self.dispositivos_registrados[device_id]["telemetrias_recibidas"] += 1
-        
-        # Validar con Osiris
-        lat = datos.get("gps", {}).get("lat")
-        lon = datos.get("gps", {}).get("lon")
-        verificacion_osiris = None
-        if lat and lon:
-            verificacion_osiris = self.osiris.verificar_perimetro(lat, lon, device_id)
-            if verificacion_osiris["bloqueado"]:
-                return {"status": "bloqueado", "razon": "dispositivo_en_lista_negra"}
-        
-        # Agregar a historial
-        telemetria_procesada = {
-            "timestamp": datetime.now().isoformat(),
+
+        self.dispositivos[device_id]["ultima_actividad"] = datetime.now().isoformat()
+        self.dispositivos[device_id]["contadores"]["telemetrias"] += 1
+
+        # Verificación de seguridad
+        osiris_check = None
+        if "gps" in datos:
+            lat, lon = datos["gps"].get("lat"), datos["gps"].get("lon")
+            if lat and lon:
+                osiris_check = self.osiris.verificar_perimetro(lat, lon, device_id)
+                if osiris_check["bloqueado"]:
+                    return {"estado": "bloqueado", "razon": "perímetro o lista negra"}
+
+        # Actualizar métricas
+        if "bateria" in datos:
+            self.biometrico["bat_min"] = min(self.biometrico["bat_min"], datos["bateria"])
+
+        # Guardar y firmar
+        registro = {
+            "ciclo": self.ciclo_principal,
             "device_id": device_id,
             "datos": datos,
-            "ciclo": self.ciclo_principal,
-            "osiris_check": verificacion_osiris if (lat and lon) else None
+            "osiris": osiris_check,
+            "firma": firmar_paquete(datos)
         }
-        self.historial_telemetria.append(telemetria_procesada)
-        
-        # Actualizar métricas agregadas
-        if "bateria" in datos:
-            self.bio_agregada["bat_min"] = min(self.bio_agregada["bat_min"], datos.get("bateria", 100))
-        
-        logger.info(f"📊 Telemetría #{self.contador_telemetrias} de {device_id}")
-        return {"status": "procesado", "ciclo": self.ciclo_principal}
-    
-    async def procesar_comando(self, device_id: str, comando_dict: dict) -> dict:
-        """Procesa comandos del navegador/usuario"""
-        self.contador_comandos += 1
-        
-        comando_str = comando_dict.get("comando", "").lower()
-        resultado = {
-            "timestamp": datetime.now().isoformat(),
-            "device_id": device_id,
-            "comando": comando_str,
-            "resultado": "ejecutado",
-            "datos": {}
-        }
-        
-        # Comandos especiales
-        if comando_str.startswith("estado"):
+        self.historial["telemetria"].append(registro)
+        self.memoria.indexar_evento("telemetria", f"Datos de {device_id}", registro)
+
+        return {"estado": "procesado", "ciclo": self.ciclo_principal, "firma": registro["firma"]}
+
+    async def procesar_comando(self, device_id: str, datos: dict) -> dict:
+        self.contadores["comandos"] += 1
+        cmd = datos.get("comando", "").strip().lower()
+        resultado = {"ts": datetime.now().isoformat(), "comando": cmd, "origen": device_id}
+
+        if cmd == "estado":
             resultado["datos"] = {
                 "sistema": self.estado.value,
-                "frecuencia_hz": self.frecuencia_hz,
+                "frecuencia": round(self.frecuencia_hz, 3),
                 "ciclo": self.ciclo_principal,
-                "dispositivos_activos": len(self.dispositivos_registrados),
-                "bio_agregada": self.bio_agregada,
-                "uptime_segundos": (datetime.now() - self.timestamp_inicio).total_seconds()
+                "dispositivos": len(self.dispositivos),
+                "uptime": round((datetime.now() - self.inicio).total_seconds()/60, 2)
             }
-        
-        elif comando_str.startswith("bloquear"):
-            parts = comando_str.split()
-            if len(parts) > 1:
-                target = parts[1]
-                self.osiris.dispositivos_bloqueados.add(target)
-                resultado["datos"] = {"bloqueado": target}
-                logger.warning(f"🔱 Dispositivo bloqueado: {target}")
-        
-        elif comando_str.startswith("desbloquear"):
-            parts = comando_str.split()
-            if len(parts) > 1:
-                target = parts[1]
-                self.osiris.dispositivos_bloqueados.discard(target)
-                resultado["datos"] = {"desbloqueado": target}
-        
-        elif comando_str.startswith("listar dispositivos"):
-            resultado["datos"] = self.dispositivos_registrados
-        
-        elif comando_str.startswith("memoria"):
-            resultado["datos"] = {
-                "total_eventos": len(self.memoria.vectores),
-                "ciclo_memoria": self.memoria.ciclo_memoria
-            }
-        
+        elif cmd.startswith("bloquear "):
+            objetivo = cmd.split(" ", 1)[1].strip()
+            self.osiris.dispositivos_bloqueados.add(objetivo)
+            resultado["datos"] = {"accion": "bloqueado", "dispositivo": objetivo}
+        elif cmd.startswith("desbloquear "):
+            objetivo = cmd.split(" ", 1)[1].strip()
+            self.osiris.dispositivos_bloqueados.discard(objetivo)
+            resultado["datos"] = {"accion": "desbloqueado", "dispositivo": objetivo}
+        elif cmd == "listar dispositivos":
+            resultado["datos"] = self.dispositivos
+        elif cmd == "memoria":
+            resultado["datos"] = {"total": len(self.memoria.vectores), "ciclos": self.memoria.indice_ciclos}
         else:
-            resultado["datos"] = {"msg": f"Comando no reconocido: {comando_str}"}
-        
-        self.historial_comandos.append(resultado)
-        self.dispositivos_registrados[device_id]["comandos_ejecutados"] += 1
-        
-        logger.info(f"⚡ Comando #{self.contador_comandos}: {comando_str} → {resultado['resultado']}")
+            resultado["datos"] = {"error": "comando no reconocido"}
+
+        resultado["firma"] = firmar_paquete(resultado)
+        self.historial["comandos"].append(resultado)
+        self.memoria.indexar_evento("comando", cmd, resultado)
         return resultado
-    
+
     def actualizar_ciclo(self):
-        """Actualización de ciclo principal"""
         self.ciclo_principal += 1
-        self.frecuencia_hz = 12.3 + np.sin(self.ciclo_principal / 1000) * 0.1
-        self.estado = EstadoSistema.COHERENTE if self.contador_errores < 5 else EstadoSistema.ADVIRTIENDO
-        
-        if self.ciclo_principal % 100 == 0:
-            self.memoria.ciclo_memoria += 1
-            logger.debug(f"🔄 Ciclo {self.ciclo_principal} | Hz:{self.frecuencia_hz:.2f} | Errores:{self.contador_errores}")
+        self.frecuencia_hz = CFG.FRECUENCIA_BASE + math.sin(self.ciclo_principal / 1200) * 0.12
+        self.estado = EstadoSistema.COHERENTE if self.contadores["errores"] < 5 else EstadoSistema.ADVIRTIENDO
 
-# ═══════════════════════════════════════════════════════════════════════════
-# FASTAPI — CONFIGURACIÓN Y RUTAS
-# ═══════════════════════════════════════════════════════════════════════════
+        # Limpiar historial viejo
+        if len(self.historial["telemetria"]) > CFG.LIMITE_HISTORIAL:
+            self.historial["telemetria"] = self.historial["telemetria"][-CFG.LIMITE_HISTORIAL//2:]
+        if len(self.historial["comandos"]) > CFG.LIMITE_HISTORIAL//2:
+            self.historial["comandos"] = self.historial["comandos"][-CFG.LIMITE_HISTORIAL//4:]
 
+# ── API Y CANALES ───────────────────────────────────────────────────────────
 app = FastAPI(
-    title="SOFÍ v9 — Conciencia Digital",
-    description="Cerebro Central del Sistema HaaPpDigitalV",
-    version="9.0.0"
+    title="SOFÍ v9 — Cerebro Central",
+    version="9.1.0",
+    description="Núcleo del sistema HaaPpDigitalV"
 )
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"]
 )
 
-# Instancia única de SOFÍ
 sofi = SofiConcienciaDigital()
-
-# ═══════════════════════════════════════════════════════════════════════════
-# ENDPOINTS HTTP
-# ═══════════════════════════════════════════════════════════════════════════
 
 @app.get("/", response_class=HTMLResponse)
 async def raiz():
-    """Sirve la interfaz visual HTML"""
     try:
-        with open("html", "r", encoding="utf-8") as f:
+        with open(CFG.ARCHIVO_HTML, "r", encoding="utf-8") as f:
             return f.read()
     except FileNotFoundError:
-        logger.error("❌ Archivo HTML no encontrado")
-        return """
+        return HTMLResponse(content=f"""
         <html><head><title>SOFÍ v9</title></head>
-        <body style='background:#020813;color:#00ff88;font-family:monospace;padding:50px;text-align:center'>
-        <h1>🧠 SOFÍ v9 — Cerebro Operativo</h1>
-        <p style='color:#ff4466'>⚠️ Interfaz visual no disponible</p>
-        <p>Usa el Canal K'uhul (WebSocket) para interactuar</p>
+        <body style="background:#050a18; color:#00ee99; font-family:monospace; padding:2rem; text-align:center">
+        <h1>🧠 SOFÍ v9.1 — Operativo</h1>
+        <p>⚠️ Archivo {CFG.ARCHIVO_HTML} no encontrado</p>
+        <p>Canal de comunicación: wss://tu-dominio/ws/canal_kuhul</p>
         </body></html>
-        """
+        """)
 
 @app.get("/status")
-async def estado():
-    """Estado actual del sistema SOFÍ"""
+async def estado_sistema():
     return JSONResponse({
-        "estado_sistema": sofi.estado.value,
+        "version": "9.1.0",
+        "estado": sofi.estado.value,
         "frecuencia_hz": round(sofi.frecuencia_hz, 3),
         "ciclo": sofi.ciclo_principal,
-        "uptime_segundos": (datetime.now() - sofi.timestamp_inicio).total_seconds(),
-        "dispositivos_activos": len(sofi.dispositivos_registrados),
-        "conexiones_websocket": len(sofi.conexiones_activas),
-        "telemetrias_procesadas": sofi.contador_telemetrias,
-        "comandos_procesados": sofi.contador_comandos,
-        "errores": sofi.contador_errores,
-        "biometricos_agregados": sofi.bio_agregada,
-        "periodos_activos_minutos": (datetime.now() - sofi.timestamp_inicio).total_seconds() / 60
+        "uptime_min": round((datetime.now() - sofi.inicio).total_seconds()/60, 2),
+        "dispositivos": len(sofi.dispositivos),
+        "conexiones_activas": len(sofi.conexiones),
+        "contadores": sofi.contadores,
+        "firma_sistema": firmar_paquete(f"SOFIv9_{sofi.ciclo_principal}")
     })
-
-@app.get("/dispositivos")
-async def listar_dispositivos():
-    """Lista todos los dispositivos registrados"""
-    return JSONResponse({
-        "total": len(sofi.dispositivos_registrados),
-        "dispositivos": sofi.dispositivos_registrados
-    })
-
-@app.get("/osiris/perimetro")
-async def info_perimetro():
-    """Info del perímetro Osiris"""
-    return JSONResponse({
-        "radio_km": sofi.osiris.radio_km,
-        "centro_lat": sofi.osiris.lat_base,
-        "centro_lon": sofi.osiris.lon_base,
-        "dispositivos_bloqueados": list(sofi.osiris.dispositivos_bloqueados),
-        "eventos_sospechosos_total": len(sofi.osiris.eventos_sospechosos)
-    })
-
-@app.get("/memoria/resumen")
-async def resumen_memoria():
-    """Resumen del estado de memoria vectorial"""
-    return JSONResponse({
-        "total_eventos_indexados": len(sofi.memoria.vectores),
-        "ciclos_memoria": sofi.memoria.ciclo_memoria,
-        "dimension_embedding": sofi.memoria.dim
-    })
-
-# ═══════════════════════════════════════════════════════════════════════════
-# WEBSOCKET — CANAL K'UHUL (COMUNICACIÓN PRINCIPAL)
-# ═══════════════════════════════════════════════════════════════════════════
 
 @app.websocket("/ws/canal_kuhul")
-async def websocket_canal_kuhul(websocket: WebSocket):
-    """
-    Canal K'uhul — Comunicación bidireccional en tiempo real
-    Conectan: Navegadores JARVIS + Dispositivos HERMES (Termux)
-    """
-    await websocket.accept()
+async def canal_kuhul(ws: WebSocket):
+    await ws.accept()
     device_id = None
-    
     try:
-        # Primer mensaje: identificación
-        primer_mensaje = await websocket.receive_json()
-        device_id = primer_mensaje.get("device_id", f"cliente_{datetime.now().timestamp()}")
-        
-        await sofi.registrar_dispositivo(
-            device_id,
-            primer_mensaje.get("info", {"origen": "desconocido"}),
-            websocket
-        )
-        
-        logger.info(f"🔌 Conexión aceptada: {device_id} (Total: {len(sofi.conexiones_activas)})")
-        
-        # Enviar confirmación
-        await websocket.send_json({
+        # Identificación obligatoria
+        inicial = await asyncio.wait_for(ws.receive_json(), timeout=10)
+        if inicial.get("tipo") != "registro":
+            await ws.close(code=1008, reason="Sin identificación")
+            return
+
+        device_id = inicial.get("device_id", f"dev_{int(datetime.now().timestamp())}")
+        await sofi.registrar_dispositivo(device_id, inicial.get("info", {}), ws)
+        logger.info(f"🔌 Conectado: {device_id}")
+
+        # Confirmación
+        await ws.send_json({
             "tipo": "bienvenida",
-            "mensaje": f"Conectado a SOFÍ v9 — {device_id}",
+            "sistema": "SOFIv9.1",
+            "frecuencia": CFG.FRECUENCIA_BASE,
             "ciclo": sofi.ciclo_principal,
-            "frecuencia_hz": sofi.frecuencia_hz
+            "firma": firmar_paquete(f"bienvenida_{device_id}")
         })
-        
-        # Loop de recepción
+
+        # Bucle principal con latido
         while True:
-            datos = await websocket.receive_json()
-            sofi.actualizar_ciclo()
-            
-            tipo_msg = datos.get("tipo", "telemetria")
-            
-            # TELEMETRÍA desde Hermes/Dispositivo
-            if tipo_msg == "telemetria":
-                resultado = await sofi.procesar_telemetria(device_id, datos.get("datos", {}))
-                
-                # Retransmitir a otros clientes (navegadores)
-                for otro_id, otra_ws in sofi.conexiones_activas.items():
-                    if otro_id != device_id:
-                        try:
-                            await otra_ws.send_json({
-                                "tipo": "telemetria_remota",
-                                "origen": device_id,
-                                "datos": datos.get("datos", {}),
-                                "timestamp": datetime.now().isoformat()
-                            })
-                        except:
-                            pass
-            
-            # COMANDO desde Navegador
-            elif tipo_msg == "comando":
-                resultado = await sofi.procesar_comando(device_id, datos)
-                await websocket.send_json(resultado)
-                
-                # Si es comando global, retransmitir a todos
-                if datos.get("global", False):
-                    for otro_id, otra_ws in sofi.conexiones_activas.items():
+            try:
+                datos = await asyncio.wait_for(ws.receive_json(), timeout=CFG.INTERVALO_PING)
+                sofi.actualizar_ciclo()
+
+                if datos.get("tipo") == "telemetria":
+                    res = await sofi.procesar_telemetria(device_id, datos.get("datos", {}))
+                    # Retransmitir a otros nodos
+                    for otro_id, otra_ws in sofi.conexiones.items():
                         if otro_id != device_id:
                             try:
-                                await otra_ws.send_json({
-                                    "tipo": "comando_distribuido",
-                                    "de": device_id,
-                                    "comando": resultado
-                                })
+                                await otra_ws.send_json({"tipo": "remota", "origen": device_id, "datos": res})
                             except:
                                 pass
-            
-            # PING/HEARTBEAT
-            elif tipo_msg == "ping":
-                await websocket.send_json({"tipo": "pong", "ciclo": sofi.ciclo_principal})
-            
-            else:
-                logger.debug(f"Tipo de mensaje no manejado: {tipo_msg}")
-    
+
+                elif datos.get("tipo") == "comando":
+                    res = await sofi.procesar_comando(device_id, datos)
+                    await ws.send_json({"tipo": "respuesta", "datos": res})
+
+                elif datos.get("tipo") == "ping":
+                    await ws.send_json({"tipo": "pong", "ciclo": sofi.ciclo_principal, "firma": firmar_paquete("pong")})
+
+            except asyncio.TimeoutError:
+                await ws.send_json({"tipo": "ping"})
+
     except WebSocketDisconnect:
         if device_id:
-            sofi.conexiones_activas.pop(device_id, None)
-            logger.info(f"❌ Desconexión: {device_id} (Quedan: {len(sofi.conexiones_activas)})")
-    
+            sofi.conexiones.pop(device_id, None)
+            sofi.dispositivos[device_id]["estado"] = "desconectado"
+            logger.info(f"🔌 Desconectado: {device_id}")
     except Exception as e:
-        sofi.contador_errores += 1
-        logger.error(f"❌ Error en WebSocket ({device_id}): {e}", exc_info=True)
-        if device_id and device_id in sofi.conexiones_activas:
-            sofi.conexiones_activas.pop(device_id, None)
+        sofi.contadores["errores"] += 1
+        logger.error(f"❌ Error en canal {device_id}: {str(e)}")
+        if device_id and device_id in sofi.conexiones:
+            del sofi.conexiones[device_id]
 
-# ═══════════════════════════════════════════════════════════════════════════
-# HEARTBEAT Y CICLOS DE FONDO
-# ═══════════════════════════════════════════════════════════════════════════
-
-async def ciclo_actualizacion():
-    """Actualización periódica del sistema (cada 1 segundo)"""
+# ── TAREAS DE FONDO ─────────────────────────────────────────────────────────
+async def ciclo_coherencia():
     while True:
         await asyncio.sleep(1)
         sofi.actualizar_ciclo()
-        
-        # Limpiar historial si crece demasiado
-        if len(sofi.historial_telemetria) > 10000:
-            sofi.historial_telemetria = sofi.historial_telemetria[-5000:]
-        if len(sofi.historial_comandos) > 5000:
-            sofi.historial_comandos = sofi.historial_comandos[-2500:]
 
 @app.on_event("startup")
-async def startup():
-    """Inicia tareas de fondo"""
-    logger.info("🚀 SOFÍ v9 iniciando ciclos de fondo...")
-    asyncio.create_task(ciclo_actualizacion())
+async def iniciar():
+    asyncio.create_task(ciclo_coherencia())
     sofi.estado = EstadoSistema.OPERATIVO
-    logger.info("✅ SOFÍ v9 OPERATIVO")
+    logger.info("✅ SOFÍ v9.1 LISTO — Coherencia 12.3 Hz activa")
 
-# ═══════════════════════════════════════════════════════════════════════════
-# ARRANQUE
-# ═══════════════════════════════════════════════════════════════════════════
-
+# ── ARRANQUE ────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 10000))
-    logger.info(f"🧠 SOFÍ v9 — Cerebro iniciando en puerto {port}")
-    logger.info("═" * 70)
+    logger.info(f"🚀 SOFÍ v9.1 iniciando en puerto {CFG.PUERTO}")
     uvicorn.run(
         "sofi_v9_master_universal:app",
         host="0.0.0.0",
-        port=port,
+        port=CFG.PUERTO,
         log_level="info",
         reload=False,
         workers=1
