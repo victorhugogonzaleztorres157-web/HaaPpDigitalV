@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>SOFÍ · JARVIS CORTEX · HaaPpDigitalV</title>
 
-<!-- ✅ TODO LOCAL - SIN DEPENDENCIAS EXTERNAS -->
+<!-- ✅ FUENTES INTEGRADAS LOCALES -->
 <style>
 @font-face {
   font-family: 'Orbitron';
@@ -33,12 +33,14 @@
   --jade:#00ffcc;--morado:#b366ff;--rojo:#ff4466;--oro:#f0a500;
   --azul:#3af;--fondo:#020813;--panel:rgba(2,8,19,0.92);
   --borde:rgba(0,255,204,0.18);--texto:#c8e8f0;--muted:#4a7a9a;
+  --negro-transp:rgba(0,0,0,0.85);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:var(--texto);font-family:'Rajdhani',sans-serif}
 
-/* ── GLOBO 3D INTEGRADO ─────────────────────────────────────── */
-#globo{position:fixed;inset:0;z-index:1}
+/* ── GLOBO 3D INTERACTIVO ───────────────────────────────────── */
+#globo{position:fixed;inset:0;z-index:1;cursor:grab}
+#globo:active{cursor:grabbing}
 
 /* ── HUD SUPERIOR ────────────────────────────────────────────── */
 #hud-top{
@@ -103,6 +105,38 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
 #pod-bat {top:30%;right:14px}
 #pod-gps {top:45%;right:14px;min-width:130px}
 #pod-net {top:60%;right:14px}
+
+/* ── PESTAÑAS DE NAVEGACIÓN ──────────────────────────────────── */
+#tabs-container{
+  position:fixed;top:80px;left:14px;z-index:25;
+  display:flex;gap:6px;
+}
+.tab-btn{
+  background:var(--panel);border:1px solid var(--borde);
+  border-radius:4px 4px 0 0;padding:6px 10px;
+  font-family:'Orbitron',monospace;font-size:10px;color:var(--muted);
+  cursor:pointer;transition:all .2s;
+}
+.tab-btn.activa{
+  border-color:var(--jade);color:var(--jade);
+  background:rgba(0,255,204,0.08);
+}
+.tab-contenido{
+  position:fixed;top:110px;left:14px;right:14px;bottom:200px;
+  z-index:24;background:var(--negro-transp);
+  border:1px solid var(--borde);border-radius:0 6px 6px 6px;
+  padding:10px;overflow-y:auto;display:none;
+}
+.tab-contenido.activa{display:block}
+
+/* ── GALERÍA DE FOTOS ────────────────────────────────────────── */
+#galeria{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+.foto-item{
+  border:1px solid var(--borde);border-radius:4px;
+  overflow:hidden;background:#000;
+}
+.foto-item img{width:100%;height:90px;object-fit:cover;display:block}
+.foto-info{padding:4px;font-size:9px;color:var(--muted);text-align:center}
 
 /* ── PANEL TERMINAL Y CHAT ───────────────────────────────────── */
 #panel-main{
@@ -194,42 +228,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo);color:v
   #bio-ring{width:220px;height:220px}
   #terminal{height:120px}
   #quick-actions{bottom:160px;right:8px}
+  .tab-contenido{top:100px;bottom:190px}
 }
 </style>
 
-<!-- ✅ LIBRERÍA GLOBE.GL INTEGRADA LOCAL -->
-<script>
-window.Globe = function(){
-  const Globe = function(container){
-    this._container = container;
-    this._points = [];
-    this._rings = [];
-    this._center = {lat:20.9674, lng:-89.6237};
-    this._autoRotate = true;
-    this._autoRotateSpeed = 0.3;
-  };
-  Globe.prototype.globeImageUrl = function(){return this};
-  Globe.prototype.backgroundColor = function(){return this};
-  Globe.prototype.pointsData = function(data){this._points = data; this._render(); return this};
-  Globe.prototype.pointLat = function(){return this};
-  Globe.prototype.pointLng = function(){return this};
-  Globe.prototype.pointAltitude = function(){return this};
-  Globe.prototype.pointColor = function(){return this};
-  Globe.prototype.pointRadius = function(){return this};
-  Globe.prototype.pointLabel = function(){return this};
-  Globe.prototype.ringsData = function(data){this._rings = data; this._render(); return this};
-  Globe.prototype.ringLat = function(){return this};
-  Globe.prototype.ringLng = function(){return this};
-  Globe.prototype.ringColor = function(){return this};
-  Globe.prototype.ringMaxRadius = function(){return this};
-  Globe.prototype.ringPropagationSpeed = function(){return this};
-  Globe.prototype.ringRepeatPeriod = function(){return this};
-  Globe.prototype.controls = function(){return {autoRotate:this._autoRotate, autoRotateSpeed:this._autoRotateSpeed}};
-  Globe.prototype.pointOfView = function(coords){this._center = coords; return this};
-  Globe.prototype._render = function(){};
-  return Globe;
-}();
-</script>
+<!-- ✅ LIBRERÍA GLOBE 3D COMPLETA Y FUNCIONAL -->
+<script src="https://unpkg.com/globe.gl@4"></script>
+<script src="https://unpkg.com/three@0.145.0/build/three.min.js"></script>
 </head>
 <body>
 
@@ -244,8 +249,28 @@ window.Globe = function(){
   <div id="hud-status">HaaPpDigitalV · K'UHUL</div>
 </div>
 
-<div id="gps-panel"><div id="gps-coords">GPS: — / —</div></div>
 <div id="osiris-alert">🚨 OSIRIS — FRICCIÓN DETECTADA</div>
+
+<!-- Pestañas -->
+<div id="tabs-container">
+  <div class="tab-btn activa" onclick="cambiarPestaña('mapa')">🌐 MAPA</div>
+  <div class="tab-btn" onclick="cambiarPestaña('fotos')">📸 FOTOS</div>
+  <div class="tab-btn" onclick="cambiarPestaña('estado')">📊 ESTADO</div>
+</div>
+
+<div id="tab-mapa" class="tab-contenido activa">
+  <p style="color:var(--jade);font-size:11px">✅ Globo interactivo — arrastra para rotar, rueda para acercar</p>
+</div>
+
+<div id="tab-fotos" class="tab-contenido">
+  <div id="galeria">
+    <p style="color:var(--muted);text-align:center;width:100%">Aquí aparecerán las fotos que tome HERMES</p>
+  </div>
+</div>
+
+<div id="tab-estado" class="tab-contenido">
+  <div id="estado-contenido" style="font-size:11px;line-height:1.8"></div>
+</div>
 
 <!-- Anillo -->
 <div id="bio-ring">
@@ -270,7 +295,7 @@ window.Globe = function(){
   <div class="qa-btn" onclick="ejecutarAccion('posesion')">⚡ POSESIÓN</div>
   <div class="qa-btn" onclick="ejecutarAccion('organizar')">📂 CORTEX</div>
   <div class="qa-btn" onclick="ejecutarAccion('gps')">🛰️ GPS</div>
-  <div class="qa-btn" onclick="ejecutarAccion('redes')">🌐 REDES</div>
+  <div class="qa-btn" onclick="ejecutarAccion('foto')">📸 TOMAR FOTO</div>
   <div class="qa-btn" onclick="ejecutarAccion('archivos')">📁 ARCHIVOS</div>
   <div class="qa-btn peligro" onclick="ejecutarAccion('osiris')">🔱 OSIRIS</div>
 </div>
@@ -285,39 +310,93 @@ window.Globe = function(){
   </div>
   <div id="cmd-row">
     <span id="cmd-prefix">LOK ▸</span>
-    <input id="cmd" type="text" placeholder="Escribe tu orden para Jarvis..." autocomplete="off" autocorrect="off" spellcheck="false">
+    <input id="cmd" type="text" placeholder="Escribe tu orden..." autocomplete="off" autocorrect="off" spellcheck="false">
     <button id="btn-send">→</button>
   </div>
 </div>
 
 <script>
 // ═══════════════════════════════════════════════════════════════
-// CONFIGURACIÓN PRINCIPAL - CONEXIÓN HERMES ↔ SOFÍ
+// CONFIGURACIÓN PRINCIPAL - SINCRONIZADO CON SOFÍ
 // ═══════════════════════════════════════════════════════════════
 const CFG = {
-  // Conexión local Termux
-  LOCAL_URL: 'ws://127.0.0.1:8765/ws/canal_kuhul',
-  // Respaldo Render
-  RENDER_URL: 'wss://pbbdigtalv.onrender.com/ws/canal_kuhul',
+  // Coordenadas base Mérida
+  LAT_BASE: 20.967775,
+  LON_BASE: -89.624258,
+  // Conexiones
+  LOCAL_URL: 'ws://127.0.0.1:10000/ws/canal_kuhul',
+  RENDER_URL: 'wss://haapbdigtalv.onrender.com/ws/canal_kuhul',
+  API_RENDER: 'https://haapbdigtalv.onrender.com',
   LLAVE_FIRMA: '_12.3Hz_Kuhul_SOFI_2026',
   MODO: 'TERMUX_PRINCIPAL'
 };
 
 // Estado global
 const STATE = {
-  lat: 20.9674, lon: -89.6237,
+  lat: CFG.LAT_BASE, lon: CFG.LON_BASE,
   hz: 12.3, coherencia: 0.95,
   hr: 72, hrv: 38, temp: 36.6, bat: 0,
   posesion: false,
-  ws: null, conectado: false
+  ws: null, conectado: false,
+  globo: null,
+  fotos: []
 };
 
 // ═══════════════════════════════════════════════════════════════
-// FIRMA DE PAQUETES SEGURA
+// FIRMA SEGURA IGUAL QUE EN SOFÍ Y HERMES
 // ═══════════════════════════════════════════════════════════════
 function firmar(datos){
   const str = JSON.stringify(datos, Object.keys(datos).sort());
-  return btoa(str + CFG.LLAVE_FIRMA).slice(0,16);
+  return btoa(unescape(encodeURIComponent(str + CFG.LLAVE_FIRMA))).slice(0,16);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INICIALIZACIÓN GLOBO 3D INTERACTIVO
+// ═══════════════════════════════════════════════════════════════
+function iniciarGlobo(){
+  STATE.globo = Globe()
+    .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
+    .backgroundColor('rgba(0,0,0,0)')
+    .width(window.innerWidth)
+    .height(window.innerHeight);
+
+  // Anillo de perímetro
+  STATE.globo.ringsData([{
+    lat: CFG.LAT_BASE,
+    lng: CFG.LON_BASE,
+    maxRadius: 100,
+    propagationSpeed: 5,
+    repeatPeriod: 2000,
+    color: () => '#00ffcc'
+  }]);
+
+  // Punto central
+  STATE.globo.pointsData([{
+    lat: CFG.LAT_BASE,
+    lng: CFG.LON_BASE,
+    altitude: 0.05,
+    color: '#ff4466',
+    radius: 0.5,
+    label: 'MERIDA · CENTRO'
+  }]);
+
+  STATE.globo(document.getElementById('globo'));
+  STATE.globo.pointOfView({lat: CFG.LAT_BASE, lng: CFG.LON_BASE, altitude: 2.5});
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ACTUALIZAR POSICIONES EN EL GLOBO
+// ═══════════════════════════════════════════════════════════════
+function actualizarPosiciones(listaDispositivos){
+  const puntos = listaDispositivos.map(d => ({
+    lat: d.lat,
+    lng: d.lon,
+    altitude: 0.05,
+    color: d.distancia_km < 50 ? '#00ffcc' : d.distancia_km < 100 ? '#f0a500' : '#ff4466',
+    radius: 0.4,
+    label: `${d.device_id} | ${d.distancia_km.toFixed(1)}km`
+  }));
+  STATE.globo.pointsData([{lat:CFG.LAT_BASE,lng:CFG.LON_BASE,altitude:0.05,color:'#b366ff',radius:0.6,label:'CENTRO OSIRIS'}, ...puntos]);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -325,13 +404,16 @@ function firmar(datos){
 // ═══════════════════════════════════════════════════════════════
 function conectarCanal(){
   if(STATE.ws && STATE.ws.readyState === WebSocket.OPEN) return;
-  STATE.ws = new WebSocket(CFG.LOCAL_URL);
+  const url = CFG.MODO === 'TERMUX_PRINCIPAL' ? CFG.LOCAL_URL : CFG.RENDER_URL;
+  STATE.ws = new WebSocket(url);
 
   STATE.ws.onopen = () => {
     STATE.conectado = true;
     document.getElementById('val-net').textContent = 'LIVE';
     document.getElementById('bar-net').style.width = '100%';
     log('[HERMES] Canal establecido — conectado a SOFÍ', 't-sys');
+    // Pedir posiciones iniciales
+    setTimeout(() => enviarComando("posiciones"), 1000);
   };
 
   STATE.ws.onmessage = (e) => {
@@ -339,7 +421,9 @@ function conectarCanal(){
       const datos = JSON.parse(e.data);
       if(datos.firma && firmar(datos) !== datos.firma) return;
       procesarRespuesta(datos);
-    }catch(err){}
+    }catch(err){
+      log(`[ERROR] Procesando mensaje: ${err.message}`, 't-error');
+    }
   };
 
   STATE.ws.onerror = () => {
@@ -353,80 +437,92 @@ function conectarCanal(){
   STATE.ws.onclose = () => {
     STATE.conectado = false;
     document.getElementById('val-net').textContent = 'OFF';
+    document.getElementById('bar-net').style.width = '0%';
     setTimeout(conectarCanal, 5000);
   };
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PROCESAMIENTO DE RESPUESTAS DE SOFÍ
+// PROCESAMIENTO DE RESPUESTAS
 // ═══════════════════════════════════════════════════════════════
 function procesarRespuesta(datos){
-  switch(datos.accion){
-    case 'posesion':
-      STATE.posesion = true;
-      log('[CORTEX] ✅ Posesión completa del equipo confirmada', 't-bio');
+  switch(datos.tipo){
+    case 'respuesta':
+      const res = datos.datos;
+      if(res.comando === 'posiciones' && res.datos){
+        actualizarPosiciones(res.datos);
+        break;
+      }
+      if(res.comando === 'foto' && res.datos && res.datos.ruta){
+        agregarFoto(res.datos);
+        log(`📸 Foto capturada: ${res.datos.ruta}`, 't-bio');
+        break;
+      }
+      if(res.comando === 'gps' && res.datos){
+        STATE.lat = res.datos.lat;
+        STATE.lon = res.datos.lon;
+        document.getElementById('val-gps').textContent = `${STATE.lat.toFixed(4)}, ${STATE.lon.toFixed(4)}`;
+        document.getElementById('bar-gps').style.width = '100%';
+        break;
+      }
       break;
-    case 'organizar':
-      log(`[CORTEX] 📂 Organizados: ${datos.archivos} archivos | ${datos.conexiones} conexiones`, 't-bio');
+
+    case 'telemetria':
+      const tel = datos.datos;
+      if(tel.gps){
+        STATE.lat = tel.gps.lat;
+        STATE.lon = tel.gps.lon;
+        document.getElementById('val-gps').textContent = `${STATE.lat.toFixed(4)}, ${STATE.lon.toFixed(4)}`;
+        document.getElementById('bar-gps').style.width = '100%';
+      }
+      if(tel.bateria !== undefined){
+        STATE.bat = tel.bateria;
+        document.getElementById('val-bat').textContent = `${STATE.bat}%`;
+        document.getElementById('bar-bat').style.width = `${STATE.bat}%`;
+      }
+      if(tel.temperatura_cpu !== undefined){
+        STATE.temp = tel.temperatura_cpu;
+        document.getElementById('val-temp').textContent = `${STATE.temp.toFixed(1)}°`;
+      }
       break;
-    case 'chat':
-      log(`🤖 JARVIS: ${datos.mensaje}`, 't-chat');
-      break;
+
     default:
       if(datos.mensaje) log(`SOFÍ: ${datos.mensaje}`, 't-blanca');
   }
 }
 
 // ═══════════════════════════════════════════════════════════════
-// EJECUCIÓN DE ACCIONES
+// ACCIONES Y CHAT
 // ═══════════════════════════════════════════════════════════════
 function ejecutarAccion(nombre){
   const acciones = {
-    posesion: {accion:'posesion', descripcion:'Tomar control completo del dispositivo'},
-    organizar: {accion:'organizar', descripcion:'Ordenar archivos, redes y procesos'},
-    gps: {accion:'gps', descripcion:'Activar triangulación de posición'},
-    redes: {accion:'redes', descripcion:'Analizar y organizar conexiones de red'},
-    archivos: {accion:'archivos', descripcion:'Escanear y estructurar almacenamiento'},
-    osiris: {accion:'osiris', descripcion:'Activar protocolo de seguridad'}
+    posesion: 'activar posesion',
+    organizar: 'organizar archivos',
+    gps: 'obtener ubicacion',
+    foto: 'tomar foto',
+    archivos: 'listar archivos',
+    osiris: 'estado seguridad'
   };
-  const accion = acciones[nombre];
-  if(!accion) return;
-
-  log(`>> LOK: ${accion.descripcion}`);
-  if(!STATE.conectado){
-    log('[HERMES] Sin conexión — intentando reconectar', 't-riesgo');
-    conectarCanal();
-    return;
-  }
-
-  const paquete = {
-    accion: accion.accion,
-    origen: 'JARVIS_CORTEX',
-    timestamp: new Date().toISOString()
-  };
-  paquete.firma = firmar(paquete);
-  STATE.ws.send(JSON.stringify(paquete));
+  if(!acciones[nombre]) return;
+  enviarComando(acciones[nombre]);
 }
 
-// ═══════════════════════════════════════════════════════════════
-// CHAT INTERACTIVO
-// ═══════════════════════════════════════════════════════════════
 function enviarComando(texto){
   const cmd = (texto || document.getElementById('cmd').value).trim();
   if(!cmd) return;
   document.getElementById('cmd').value = '';
-  log(`>> TÚ: ${cmd}`);
+  log(`>> LOK: ${cmd}`);
 
   if(!STATE.conectado){
-    log('[HERMES] Esperando conexión para enviar orden', 't-riesgo');
+    log('[HERMES] Esperando conexión...', 't-riesgo');
     conectarCanal();
     return;
   }
 
   const paquete = {
-    accion: 'chat',
+    tipo: 'comando',
     comando: cmd,
-    origen: 'USUARIO_LOK',
+    device_id: 'JARVIS_UI',
     timestamp: new Date().toISOString()
   };
   paquete.firma = firmar(paquete);
@@ -434,7 +530,35 @@ function enviarComando(texto){
 }
 
 // ═══════════════════════════════════════════════════════════════
-// EFECTOS VISUALES Y ANILLO
+// GALERÍA DE FOTOS
+// ═══════════════════════════════════════════════════════════════
+function agregarFoto(datosFoto){
+  STATE.fotos.unshift(datosFoto);
+  const galeria = document.getElementById('galeria');
+  galeria.innerHTML = '';
+  STATE.fotos.forEach(f => {
+    const item = document.createElement('div');
+    item.className = 'foto-item';
+    item.innerHTML = `
+      <img src="file://${f.ruta}" alt="Captura">
+      <div class="foto-info">${new Date(f.timestamp).toLocaleTimeString('es-MX')}</div>
+    `;
+    galeria.appendChild(item);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CAMBIO DE PESTAÑAS
+// ═══════════════════════════════════════════════════════════════
+function cambiarPestaña(id){
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('activa'));
+  document.querySelectorAll('.tab-contenido').forEach(c => c.classList.remove('activa'));
+  event.target.classList.add('activa');
+  document.getElementById(`tab-${id}`).classList.add('activa');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EFECTOS VISUALES
 // ═══════════════════════════════════════════════════════════════
 const ringCanvas = document.getElementById('ring-canvas');
 const rCtx = ringCanvas.getContext('2d');
@@ -468,7 +592,7 @@ function dibujarAnillo(){
 dibujarAnillo();
 
 // ═══════════════════════════════════════════════════════════════
-// REGISTRO DE CONSOLA
+// CONSOLA
 // ═══════════════════════════════════════════════════════════════
 const term = document.getElementById('terminal');
 function log(msg, clase='t-sys'){
@@ -481,16 +605,18 @@ function log(msg, clase='t-sys'){
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ARRANQUE DEL SISTEMA
+// ARRANQUE GENERAL
 // ═══════════════════════════════════════════════════════════════
 (function iniciar(){
+  iniciarGlobo();
   conectarCanal();
   document.getElementById('cmd').addEventListener('keydown', e => e.key==='Enter' && enviarComando());
   document.getElementById('btn-send').addEventListener('click', () => enviarComando());
 
-  setTimeout(() => log('[JARVIS] Sistema listo para operar', 't-bio'), 800);
-  setTimeout(() => log('[CORTEX] Esperando orden para organizar recursos', 't-bio'), 1500);
+  setTimeout(() => log('[JARVIS] Interfaz lista', 't-bio'), 800);
+  setTimeout(() => log('[CORTEX] Conectando con sistema central', 't-bio'), 1500);
 })();
 </script>
 </body>
 </html>
+
