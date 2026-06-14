@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-HERMES v9 — Fuerza Operativa y Puente de Sensores
+HERMES v9.1.2 — Fuerza Operativa y Puente de Sensores
 Arquitecto: Sistema HaaPpDigitalV
-Versión: 9.1.1
+Versión: 9.1.2
 Propósito: Captura de datos, ejecución de órdenes y conexión con SOFÍ
 Compatibilidad: Termux, SOFÍ v9, Render
 """
@@ -42,376 +42,379 @@ load_dotenv()
 # ═══════════════════════════════════════════════════════════════════════════
 
 class CFG:
-    # ✅ ACTUALIZADO: URL real de tu servicio en Render
+    # URLs de conexión
     SOFI_URL = os.getenv("SOFI_URL", "wss://haapbdigtalv.onrender.com/ws/canal_kuhul")
+    LOCAL_FALLBACK = os.getenv("LOCAL_FALLBACK", "ws://127.0.0.1:8765/ws/canal_kuhul")
+    
+    # Identificación
     DEVICE_ID = os.getenv("HERMES_ID", "MERIDA_UNIDAD_01")
     TIPO_DISPOSITIVO = os.getenv("HERMES_TIPO", "android_termux")
-    VERSION = "9.1.1"
-    # ✅ SINCRONIZADO: Misma llave de firma que en SOFÍ
+    VERSION = "9.1.2"
+    
+    # Seguridad - MISMA LLAVE QUE EN SOFÍ Y LA INTERFAZ
     LLAVE_FIRMA = os.getenv("LLAVE_JHOP", "_12.3Hz_Kuhul_SOFI_2026")
-    INTERVALO_TELEMETRIA = int(os.getenv("HERMES_TELEMETRIA_INTERVALO", 10))
+    
+    # Intervalos de operación
+    INTERVALO_TELEMETRIA = int(os.getenv("HERMES_TELEMETRIA_INTERVALO", 8))
     TIEMPO_RECONEXION = int(os.getenv("HERMES_RECONEXION_TIMEOUT", 5))
     INTERVALO_PING = int(os.getenv("INTERVALO_PING", 15))
+    
+    # Entorno
     EN_TERMUX = os.getenv("EN_TERMUX", "true").lower() == "true"
-    # ✅ AGREGADO: Coordenadas exactas de referencia
+    RUTA_FOTOS = os.getenv("RUTA_FOTOS", "/sdcard/DCIM/OSIRIS/")
+    RUTA_ARCHIVOS = os.getenv("RUTA_ARCHIVOS", "/sdcard/Download/")
+    
+    # Coordenadas base Mérida
     LAT_BASE = 20.967775
     LON_BASE = -89.624258
 
-# ── Sistema de firma JHOP — igual que en SOFÍ ─────────────────────────────
+# ── Sistema de firma unificado JHOP ───────────────────────────────────────
 def firmar_paquete(datos: Union[dict, str]) -> str:
-    """Firma uniforme para verificar integridad en todo el sistema"""
+    """Firma uniforme para verificar integridad en todo el ecosistema"""
     if isinstance(datos, dict):
-        datos = json.dumps(datos, sort_keys=True, ensure_ascii=False)
-    return hashlib.sha256((datos + CFG.LLAVE_FIRMA).encode()).hexdigest()[:16]
+        datos_str = json.dumps(datos, sort_keys=True, ensure_ascii=False)
+    else:
+        datos_str = str(datos)
+    return hashlib.sha256((datos_str + CFG.LLAVE_FIRMA).encode("utf-8")).hexdigest()[:16]
 
 # ═══════════════════════════════════════════════════════════════════════════
-# SENSORES DISPOSITIVO
+# SENSORES Y ACCESO AL DISPOSITIVO
 # ═══════════════════════════════════════════════════════════════════════════
 
 class SensoresDispositivo:
-    """Abstracción de sensores — Soporta Termux real + simulación"""
+    """Lectura real en Termux + simulación segura para pruebas"""
 
     def __init__(self, en_termux: bool = True):
         self.en_termux = en_termux
-        # ✅ ACTUALIZADO: Posición inicial exacta de Mérida
         self.ultimo_gps = {"lat": CFG.LAT_BASE, "lon": CFG.LON_BASE, "precision": 0}
         self.cache_bateria = 100
         self.cache_temp = 36.6
         self.ultima_lectura = datetime.now()
+        
+        # Crear carpeta para fotos si no existe
+        os.makedirs(CFG.RUTA_FOTOS, exist_ok=True)
 
     async def obtener_gps_real(self) -> Dict:
-        """
-        [CORREGIDO] termux-location devuelve JSON, parseo seguro
-        """
+        """Obtiene ubicación real usando termux-location"""
         if not self.en_termux:
             return self.simular_gps()
+        
         try:
             resultado = subprocess.run(
-                ['termux-location', '-p', 'network'],
-                capture_output=True, text=True, timeout=10
+                ["termux-location", "-p", "gps"],
+                capture_output=True, text=True, timeout=12
             )
             if resultado.returncode == 0 and resultado.stdout.strip():
                 geo = json.loads(resultado.stdout)
-                lat = float(geo.get("latitude", self.ultimo_gps["lat"]))
-                lon = float(geo.get("longitude", self.ultimo_gps["lon"]))
-                acc = float(geo.get("accuracy", 10))
-                self.ultimo_gps = {"lat": round(lat, 6), "lon": round(lon, 6), "precision": int(acc)}
-                logger.info(f"📍 GPS Real: {lat:.5f}, {lon:.5f} ±{acc}m")
+                lat = round(float(geo.get("latitude", self.ultimo_gps["lat"])), 6)
+                lon = round(float(geo.get("longitude", self.ultimo_gps["lon"])), 6)
+                prec = int(float(geo.get("accuracy", 15)))
+                self.ultimo_gps = {"lat": lat, "lon": lon, "precision": prec}
+                logger.info(f"📍 GPS: {lat:.5f}, {lon:.5f} ±{prec}m")
                 return self.ultimo_gps
         except Exception as e:
-            logger.warning(f"⚠️ GPS Termux falló: {e} — usando último valor o simulación")
+            logger.warning(f"⚠️ GPS real falló: {str(e)} — usando último valor")
+        
         return self.simular_gps()
 
     def simular_gps(self) -> Dict:
-        lat = self.ultimo_gps["lat"] + (np.random.randn() * 0.001)
-        lon = self.ultimo_gps["lon"] + (np.random.randn() * 0.001)
-        return {"lat": round(lat, 6), "lon": round(lon, 6), "precision": int(np.random.randint(5, 50))}
+        """Simula pequeños movimientos desde la posición base"""
+        lat = round(self.ultimo_gps["lat"] + np.random.normal(0, 0.0008), 6)
+        lon = round(self.ultimo_gps["lon"] + np.random.normal(0, 0.0008), 6)
+        prec = int(np.random.randint(8, 40))
+        return {"lat": lat, "lon": lon, "precision": prec}
 
     async def obtener_bateria(self) -> int:
+        """Lee nivel de batería desde archivos o Termux"""
         if not self.en_termux:
             return self.simular_bateria()
+        
+        # Método 1: Archivo del sistema
         try:
-            # Intento 1: sysfs
             with open("/sys/class/power_supply/battery/capacity", "r") as f:
-                bat = int(f.read().strip())
-                self.cache_bateria = max(0, min(100, bat))
+                self.cache_bateria = max(0, min(100, int(f.read().strip())))
                 return self.cache_bateria
         except:
             pass
+        
+        # Método 2: Comando Termux
         try:
-            # Intento 2: termux-battery-status
-            raw = subprocess.check_output(["termux-battery-status"], timeout=5, stderr=subprocess.DEVNULL)
-            datos = json.loads(raw)
-            bat = int(datos.get("percentage", self.cache_bateria))
-            self.cache_bateria = max(0, min(100, bat))
+            salida = subprocess.check_output(
+                ["termux-battery-status"], timeout=5, stderr=subprocess.DEVNULL
+            )
+            datos = json.loads(salida)
+            self.cache_bateria = max(0, min(100, int(datos.get("percentage", self.cache_bateria))))
             return self.cache_bateria
         except:
-            return self.simular_bateria()
+            pass
+        
+        return self.simular_bateria()
 
     def simular_bateria(self) -> int:
-        self.cache_bateria = max(20, self.cache_bateria - int(np.random.randint(0, 2)))
+        self.cache_bateria = max(10, self.cache_bateria - np.random.randint(0, 2))
         return self.cache_bateria
 
     async def obtener_temperatura_cpu(self) -> float:
+        """Temperatura del procesador"""
         if not self.en_termux:
             return self.simular_temperatura()
+        
         try:
             with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
-                temp_raw = int(f.read().strip())
-                self.cache_temp = round(temp_raw / 1000, 1)
+                self.cache_temp = round(int(f.read().strip()) / 1000, 1)
                 return self.cache_temp
         except:
-            return self.simular_temperatura()
+            pass
+        
+        return self.simular_temperatura()
 
     def simular_temperatura(self) -> float:
-        self.cache_temp = round(35 + np.random.randn() * 2 + abs(np.sin(time.time() / 100) * 1.5), 1)
+        base = 36.5
+        variacion = np.sin(time.time() / 120) * 1.8 + np.random.normal(0, 0.4)
+        self.cache_temp = round(base + variacion, 1)
         return self.cache_temp
 
+    async def tomar_foto(self) -> Dict:
+        """Captura imagen con cámara y devuelve ruta accesible"""
+        nombre = f"OSIRIS_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+        ruta_completa = os.path.join(CFG.RUTA_FOTOS, nombre)
+        
+        try:
+            subprocess.run(
+                ["termux-camera-photo", "-c", "0", ruta_completa],
+                timeout=15, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
+            return {
+                "estado": "ok",
+                "ruta_local": ruta_completa,
+                "nombre": nombre,
+                "timestamp": datetime.now().isoformat(),
+                "tamano_kb": round(os.path.getsize(ruta_completa) / 1024, 1)
+            }
+        except Exception as e:
+            logger.error(f"❌ Error capturando foto: {str(e)}")
+            return {"estado": "error", "mensaje": str(e)}
+
+    async def listar_archivos(self, ruta: str = None) -> Dict:
+        """Escanea archivos en la carpeta indicada"""
+        ruta = ruta or CFG.RUTA_ARCHIVOS
+        try:
+            archivos = []
+            for f in os.listdir(ruta):
+                camino = os.path.join(ruta, f)
+                if os.path.isfile(camino):
+                    archivos.append({
+                        "nombre": f,
+                        "tamano_kb": round(os.path.getsize(camino) / 1024, 1),
+                        "modificado": datetime.fromtimestamp(os.path.getmtime(camino)).isoformat()
+                    })
+            return {
+                "estado": "ok",
+                "ruta": ruta,
+                "cantidad": len(archivos),
+                "lista": archivos[:20]  # Enviar solo primeros 20 para no saturar
+            }
+        except Exception as e:
+            return {"estado": "error", "mensaje": str(e)}
+
     async def obtener_sensores_completo(self) -> Dict:
+        """Recopila todos los datos en paralelo"""
         gps, bat, temp = await asyncio.gather(
             self.obtener_gps_real(),
             self.obtener_bateria(),
             self.obtener_temperatura_cpu()
         )
-        memoria = os.popen("free -h 2>/dev/null | grep Mem | awk '{print $7}'").read().strip() or "N/A"
         return {
             "gps": gps,
             "bateria": bat,
             "temperatura_cpu": temp,
-            "memoria_disponible": memoria,
-            "timestamp": datetime.now().isoformat(),
-            "firma": firmar_paquete(f"{gps}{bat}{temp}")
+            "memoria": os.popen("free -h 2>/dev/null | grep Mem | awk '{print $7}'").read().strip() or "N/A",
+            "timestamp": datetime.now().isoformat()
         }
 
-
 # ═══════════════════════════════════════════════════════════════════════════
-# HERMES v9 — FUERZA OPERATIVA COMPLETA
+# NÚCLEO HERMES — COMUNICACIÓN Y EJECUCIÓN
 # ═══════════════════════════════════════════════════════════════════════════
 
 class HermesV9Operativo:
-    """
-    Fuerza Operativa de SOFÍ — Controlador de Dispositivo Termux.
-    PROTOCOLO COMPATIBLE: Envía y recibe en formato estándar de SOFÍ v9
-    """
+    """Controlador principal: conecta sensores, ejecuta órdenes y sincroniza"""
 
     def __init__(self):
-        self.sofi_url = CFG.SOFI_URL
-        self.device_id = CFG.DEVICE_ID
-        self.tipo_dispositivo = CFG.TIPO_DISPOSITIVO
-        self.version = CFG.VERSION
-
+        self.url_actual = CFG.SOFI_URL
         self.conectado = False
         self.websocket: Optional[websockets.WebSocketClientProtocol] = None
         self.sensores = SensoresDispositivo(en_termux=CFG.EN_TERMUX)
-
-        self.intervalo_telemetria = CFG.INTERVALO_TELEMETRIA
-        self.tiempo_reconexion = CFG.TIEMPO_RECONEXION
-        self.intervalo_ping = CFG.INTERVALO_PING
-
-        # Métricas
+        
+        # Estadísticas de operación
         self.telemetrias_enviadas = 0
         self.comandos_ejecutados = 0
         self.errores_conexion = 0
-        self.tiempo_inicio = datetime.now()
+        self.inicio = datetime.now()
 
-        logger.info("⚡ HERMES v9.1.1 Inicializado")
-        logger.info(f"   ID       : {self.device_id}")
-        logger.info(f"   Tipo     : {self.tipo_dispositivo}")
-        logger.info(f"   Cerebro  : {self.sofi_url}")
+        logger.info("=" * 65)
+        logger.info("⚡ HERMES v9.1.2 — FUERZA OPERATIVA ACTIVA")
+        logger.info(f"🔹 ID: {CFG.DEVICE_ID}")
+        logger.info(f"🔹 Cerebro: {self.url_actual}")
+        logger.info(f"🔹 Modo: {'Termux Real' if CFG.EN_TERMUX else 'Simulación'}")
+        logger.info("=" * 65)
 
-    # ── Formato estándar compatible con SOFÍ ─────────────────────────────
     def _formatear_mensaje(self, tipo: str, datos: dict = None, comando: str = None) -> dict:
-        """Genera paquetes en el formato exacto que espera SOFÍ v9"""
+        """Formato estándar compatible con SOFÍ v9"""
         paquete = {
             "tipo": tipo,
-            "device_id": self.device_id,
-            "timestamp": datetime.now().isoformat(),
-            "firma": ""
+            "device_id": CFG.DEVICE_ID,
+            "version": CFG.VERSION,
+            "timestamp": datetime.now().isoformat()
         }
         if datos:
             paquete["datos"] = datos
         if comando:
             paquete["comando"] = comando
+        
         paquete["firma"] = firmar_paquete(paquete)
         return paquete
 
-    # ── Conexión principal ────────────────────────────────────────────────
-    async def conectar_sofi(self):
+    async def conectar(self):
+        """Ciclo de conexión con respaldo automático"""
         while True:
             try:
-                logger.info(f"🔗 Conectando a SOFÍ en {self.sofi_url}...")
+                logger.info(f"🔗 Conectando a: {self.url_actual}")
                 async with websockets.connect(
-                    self.sofi_url,
-                    ping_interval=30,
-                    ping_timeout=10,
-                    max_size=10_000_000,
-                    close_timeout=5
-                ) as websocket:
-                    self.websocket = websocket
+                    self.url_actual,
+                    ping_interval=25,
+                    ping_timeout=12,
+                    max_size=15_000_000,
+                    open_timeout=10
+                ) as ws:
+                    self.websocket = ws
                     self.conectado = True
                     self.errores_conexion = 0
-                    logger.info("✅ Conectado a SOFÍ v9 — Canal K'uhul activo")
+                    logger.info("✅ CANAL K'UHUL ESTABLECIDO")
 
-                    # Identificación inicial
-                    datos_registro = {
-                        "version": self.version,
-                        "tipo": self.tipo_dispositivo,
-                        "plataforma": "Termux/Android" if CFG.EN_TERMUX else "Simulación"
-                    }
-                    msg_registro = self._formatear_mensaje("registro", datos_registro)
-                    await self.websocket.send(json.dumps(msg_registro, ensure_ascii=False))
-                    logger.info("📨 Identificación enviada correctamente")
+                    # Enviar registro inicial
+                    await self.websocket.send(json.dumps(
+                        self._formatear_mensaje("registro", {
+                            "tipo": CFG.TIPO_DISPOSITIVO,
+                            "plataforma": "Android/Termux",
+                            "lat_inicial": CFG.LAT_BASE,
+                            "lon_inicial": CFG.LON_BASE
+                        })
+                    ))
 
-                    # Tareas paralelas
+                    # Ejecutar tareas en paralelo
                     tareas = [
                         asyncio.create_task(self._ciclo_telemetria()),
-                        asyncio.create_task(self._ciclo_escucha()),
-                        asyncio.create_task(self._ping_periodico())
+                        asyncio.create_task(self._escuchar_comandos()),
+                        asyncio.create_task(self._latido_conexion())
                     ]
-
-                    try:
-                        await asyncio.gather(*tareas)
-                    except asyncio.CancelledError:
-                        for t in tareas:
-                            t.cancel()
-                        raise
+                    await asyncio.gather(*tareas)
 
             except Exception as e:
                 self.conectado = False
                 self.errores_conexion += 1
-                logger.error(f"❌ Error de conexión #{self.errores_conexion}: {str(e)}")
-                logger.info(f"🔄 Reintentando en {self.tiempo_reconexion}s...")
-                await asyncio.sleep(self.tiempo_reconexion)
+                logger.error(f"❌ Error conexión #{self.errores_conexion}: {str(e)}")
 
-    # ── Ciclo telemetría ──────────────────────────────────────────────────
+                # Cambiar a respaldo si falla el principal
+                if self.errores_conexion >= 3 and self.url_actual == CFG.SOFI_URL:
+                    self.url_actual = CFG.LOCAL_FALLBACK
+                    logger.info("🔄 Cambiando a conexión local de respaldo")
+                    self.errores_conexion = 0
+
+                await asyncio.sleep(CFG.TIEMPO_RECONEXION)
+
     async def _ciclo_telemetria(self):
-        """Envía datos de sensores en formato compatible con SOFÍ"""
+        """Envía datos cada cierto intervalo"""
         while self.conectado:
             try:
-                sensores = await self.sensores.obtener_sensores_completo()
-                msg = self._formatear_mensaje("telemetria", datos=sensores)
-                await self.websocket.send(json.dumps(msg, ensure_ascii=False))
-
+                datos = await self.sensores.obtener_sensores_completo()
+                paquete = self._formatear_mensaje("telemetria", datos)
+                await self.websocket.send(json.dumps(paquete))
+                
                 self.telemetrias_enviadas += 1
-                logger.info(
-                    f"📡 Telemetría #{self.telemetrias_enviadas} | "
-                    f"GPS: {sensores['gps']['lat']:.4f},{sensores['gps']['lon']:.4f} | "
-                    f"BAT: {sensores['bateria']}% | TEMP: {sensores['temperatura_cpu']}°C"
-                )
+                logger.info(f"📡 Enviado | Bat: {datos['bateria']}% | Temp: {datos['temperatura_cpu']}°C")
+                await asyncio.sleep(CFG.INTERVALO_TELEMETRIA)
 
-                await asyncio.sleep(self.intervalo_telemetria)
-
-            except asyncio.CancelledError:
-                break
             except Exception as e:
-                logger.error(f"❌ Error enviando telemetría: {e}")
+                logger.debug(f"⚠️ Pausa en telemetría: {str(e)}")
                 await asyncio.sleep(2)
 
-    # ── Ciclo escucha ─────────────────────────────────────────────────────
-    async def _ciclo_escucha(self):
-        """Recibe y procesa comandos enviados desde SOFÍ"""
+    async def _escuchar_comandos(self):
+        """Recibe y procesa órdenes desde SOFÍ / Interfaz"""
         while self.conectado:
             try:
-                mensaje = await asyncio.wait_for(self.websocket.recv(), timeout=120)
-                datos = json.loads(mensaje)
+                raw = await asyncio.wait_for(self.websocket.recv(), timeout=120)
+                mensaje = json.loads(raw)
 
-                # Verificar firma si viene incluida
-                if "firma" in datos:
-                    firma_recibida = datos.pop("firma")
-                    firma_calculada = firmar_paquete(datos)
-                    if firma_recibida != firma_calculada:
-                        logger.warning("⚠️ Mensaje con firma inválida — ignorado")
-                        continue
+                # Verificar seguridad
+                firma_recibida = mensaje.pop("firma", None)
+                firma_valida = firmar_paquete(mensaje)
+                if not firma_recibida or firma_recibida != firma_valida:
+                    logger.warning("⚠️ Mensaje rechazado: firma inválida")
+                    continue
 
-                tipo = datos.get("tipo", "")
+                tipo = mensaje.get("tipo")
+                orden = mensaje.get("comando", "").lower().strip()
 
-                if tipo == "bienvenida":
-                    logger.info(f"🤝 Confirmación de SOFÍ: Ciclo {datos.get('ciclo')}")
-
-                elif tipo == "comando":
-                    logger.info(f"📥 Comando recibido: {datos.get('comando', '')}")
-                    await self._ejecutar_orden(datos.get("comando", ""))
-
-                elif tipo == "ping":
+                if tipo == "ping":
                     await self.websocket.send(json.dumps(self._formatear_mensaje("pong")))
+                    continue
 
-                elif datos.get("estado") == "BLOQUEADO":
-                    logger.critical(f"🚨 BLOQUEADO POR OSIRIS: {datos.get('razon', 'Sin motivo')}")
-                    self.conectado = False
-                    break
+                if tipo == "comando" and orden:
+                    logger.info(f"📥 Orden recibida: {orden}")
+                    respuesta = await self._procesar_orden(orden)
+                    await self.websocket.send(json.dumps(
+                        self._formatear_mensaje("respuesta", respuesta, comando=orden)
+                    ))
 
             except asyncio.TimeoutError:
-                logger.debug("⏱️ Sin mensajes recientes — conexión activa")
                 continue
-            except asyncio.CancelledError:
-                break
             except Exception as e:
-                logger.error(f"❌ Error en escucha: {e} — reintentando")
-                await asyncio.sleep(2)
+                logger.debug(f"⚠️ Escucha en pausa: {str(e)}")
+                await asyncio.sleep(1)
 
-    # ── Ejecutar órdenes ──────────────────────────────────────────────────
-    async def _ejecutar_orden(self, orden: str):
-        """Ejecuta todas las acciones que ya tenía el código original"""
+    async def _procesar_orden(self, orden: str) -> Dict:
+        """Ejecuta acciones según la orden recibida"""
         self.comandos_ejecutados += 1
-        orden_lower = orden.lower().strip()
-        logger.info(f"⚡ Ejecutando orden #{self.comandos_ejecutados}: {orden[:60]}...")
 
-        resultado = {"estado": "ejecutado", "orden": orden}
+        if any(p in orden for p in ["gps", "ubicación", "posición"]):
+            return {"accion": "ubicacion", "datos": await self.sensores.obtener_gps_real()}
 
-        if any(pal in orden_lower for pal in ["gps", "ubicación", "posición"]):
-            resultado["datos"] = await self.sensores.obtener_gps_real()
+        elif any(p in orden for p in ["foto", "cámara", "estigia"]):
+            return {"accion": "foto", "datos": await self.sensores.tomar_foto()}
 
-        elif any(pal in orden_lower for pal in ["batería", "energía", "temperatura", "hardware"]):
-            sensores = await self.sensores.obtener_sensores_completo()
-            resultado["datos"] = {
-                "bateria": sensores["bateria"],
-                "temperatura": sensores["temperatura_cpu"],
-                "memoria": sensores["memoria_disponible"]
-            }
+        elif any(p in orden for p in ["archivos", "listar", "explorar"]):
+            return {"accion": "archivos", "datos": await self.sensores.listar_archivos()}
 
-        elif any(pal in orden_lower for pal in ["foto", "cámara", "estigia"]):
-            resultado["datos"] = self._tomar_foto()
+        elif any(p in orden for p in ["estado", "sensores", "diagnóstico"]):
+            return {"accion": "estado", "datos": await self.sensores.obtener_sensores_completo()}
 
-        elif any(pal in orden_lower for pal in ["archivos", "organizar", "listar"]):
-            ruta = "/sdcard/Download"
-            try:
-                archivos = os.listdir(ruta)
-                resultado["datos"] = {"ruta": ruta, "cantidad": len(archivos), "lista": archivos[:10]}
-            except Exception as e:
-                resultado["datos"] = {"error": str(e)}
+        elif any(p in orden for p in ["posesión", "control"]):
+            return {"accion": "posesion", "estado": "activo", "mensaje": "Control confirmado"}
 
         else:
-            resultado["datos"] = {"mensaje": "Orden recibida, sin acción específica definida"}
+            return {"accion": "desconocida", "mensaje": "Orden recibida sin acción asignada"}
 
-        # Enviar resultado de vuelta al cerebro
-        if self.conectado and self.websocket:
-            msg_respuesta = self._formatear_mensaje("respuesta", datos=resultado)
-            await self.websocket.send(json.dumps(msg_respuesta, ensure_ascii=False))
-            logger.info(f"📤 Resultado enviado a SOFÍ")
-
-    def _tomar_foto(self) -> dict:
-        """Función original mantenida tal cual"""
-        ruta = f"/sdcard/DCIM/OSIRIS_{int(time.time())}.jpg"
-        try:
-            subprocess.run(
-                ["termux-camera-photo", "-c", "0", ruta],
-                timeout=10, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-            )
-            return {"ruta": ruta, "estado": "foto_capturada", "timestamp": datetime.now().isoformat()}
-        except Exception as e:
-            return {"error": str(e), "estado": "fallido"}
-
-    # ── Ping periódico ────────────────────────────────────────────────────
-    async def _ping_periodico(self):
-        """Mantiene conexión activa igual que el protocolo de SOFÍ"""
+    async def _latido_conexion(self):
+        """Mantiene la conexión viva"""
         while self.conectado:
             try:
-                await asyncio.sleep(self.intervalo_ping)
-                if self.conectado and self.websocket:
-                    await self.websocket.send(json.dumps(self._formatear_mensaje("ping")))
-                    logger.debug("💓 Latido enviado")
-            except asyncio.CancelledError:
-                break
-            except Exception:
+                await asyncio.sleep(CFG.INTERVALO_PING)
+                await self.websocket.send(json.dumps(self._formatear_mensaje("ping")))
+            except:
                 break
 
-    # ── Arranque principal ─────────────────────────────────────────────────
-    async def iniciar(self):
-        logger.info("=" * 70)
-        logger.info("⚡ HERMES v9.1.1 — Fuerza Operativa")
-        logger.info("=" * 70)
-        await self.conectar_sofi()
-
+    async def arrancar(self):
+        await self.conectar()
 
 # ═══════════════════════════════════════════════════════════════════════════
-# EJECUCIÓN
+# EJECUCIÓN PRINCIPAL
 # ═══════════════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
     hermes = HermesV9Operativo()
     try:
-        asyncio.run(hermes.iniciar())
+        asyncio.run(hermes.arrancar())
     except KeyboardInterrupt:
         logger.info("⛔ HERMES detenido por usuario")
     except Exception as e:
-        logger.critical(f"❌ Error fatal: {e}", exc_info=True)
+        logger.critical(f"❌ Error fatal: {str(e)}", exc_info=True)
